@@ -1,11 +1,6 @@
 require("dotenv").config();
 
-const {
-  Client,
-  GatewayIntentBits,
-  Routes,
-  Collection,
-} = require("discord.js");
+const { Client, GatewayIntentBits, Routes, Collection, Events } = require("discord.js");
 const { REST } = require("@discordjs/rest");
 const axios = require("axios");
 const fs = require("fs");
@@ -21,9 +16,7 @@ function reaquire(moduleName) {
 function loadCommands() {
   client.commands = new Collection();
   const commandsPath = path.join(__dirname, "commands");
-  const commandFiles = fs
-    .readdirSync(commandsPath)
-    .filter((file) => file.endsWith(".js"));
+  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
 
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
@@ -55,7 +48,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.token);
   }
 })();
 
-client.on("interactionCreate", async (interaction) => {
+client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -73,22 +66,38 @@ client.on("interactionCreate", async (interaction) => {
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp({
         content: "❌ There was an error while running this command",
-        flags: "Ephemeral"
+        flags: "Ephemeral",
       });
     } else {
       await interaction.reply({
         content: "❌ There was an error while running this command",
-        flags: "Ephemeral"
+        flags: "Ephemeral",
       });
     }
   }
 });
 
-client.on("error", (e) => {
+client.on(Events.GuildMemberAdd, async (member) => {
+  const targetGuildId = "1011004713908576367";
+  const roleId = "1069722932558962700";
+
+  if (member.guild.id !== targetGuildId) return;
+
+  try {
+    const role = member.guild.roles.cache.get(roleId);
+    if (!role) return console.error("Role not found!");
+
+    await member.roles.add(role);
+  } catch (error) {
+    console.error("Failed to assign member role:", error);
+  }
+});
+
+client.on(Events.Error, (e) => {
   console.error(e);
 });
 
-client.once("ready", () => {
+client.once(Events.ClientReady, () => {
   console.log("✅ The bot is online");
 });
 

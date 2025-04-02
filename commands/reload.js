@@ -26,7 +26,7 @@ const run = async (interaction = CommandInteraction.prototype) => {
     });
 
   if (typeof interaction.client?.loadCommands !== 'function')
-    await interaction.reply({
+    return await interaction.reply({
       content: '❌ Client is missing "loadCommands" function',
       flags: "Ephemeral",
     });

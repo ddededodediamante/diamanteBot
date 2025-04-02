@@ -30,41 +30,58 @@ const data = new SlashCommandBuilder()
       .addChoices(
         { name: "rainbow", value: "rainbow" },
         { name: "boykisser", value: "boykisser" },
-        { name: "compress", value: "compress" }
+        { name: "compress", value: "compress" },
+        { name: "animated wave distort", value: "waveDistortAnimated" },
+        { name: "violent squish", value: "violentSquish" },
+        { name: "rotate", value: "rotate" },
+        { name: "rotate (counterclockwise)", value: "rotateCounterclockwise" }
       )
   )
   .addAttachmentOption((option) =>
     option
       .setName("image")
       .setDescription("The image or GIF to use")
-      .setRequired(true)
+      .setRequired(false)
+  )
+  .addUserOption((option) =>
+    option
+      .setName("user")
+      .setDescription("The user to use as an image")
+      .setRequired(false)
   );
 
 const run = async (interaction = CommandInteraction.prototype) => {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
+  const user = interaction.options.getUser("user");
+
+  if (!attachment && !user) return await interaction.reply({
+    content: '❌ You must specify one between "image" or "user"',
+    ephemeral: true,
+  });
 
   try {
-    const imageBuffer = await axios.get(attachment.url, {
+    const imageBuffer = await axios.get(attachment ? attachment.url : user.displayAvatarURL({ forceStatic: true, extension: 'png' }), {
       responseType: "arraybuffer",
     });
 
     let gifBuffer;
 
     if (typeof effects[effect] !== "function") {
-      return interaction.reply({
+      return await interaction.reply({
         content: "❌ Unknown effect option",
         ephemeral: true,
       });
     } else {
       gifBuffer = await effects[effect](
         Buffer.from(imageBuffer.data),
-        attachment.contentType,
+        attachment ? attachment.contentType : 'image/png',
         interaction
       );
     }
 
-    if (gifBuffer) {
+    if (gifBuffer === 'cancel') return;
+    else if (gifBuffer) {
       const gifAttachment = new AttachmentBuilder(
         gifBuffer,
         { name: "output.gif" },

@@ -43,14 +43,14 @@ const data = new SlashCommandBuilder()
       .setName("user")
       .setDescription("The user to use as an image")
       .setRequired(false)
-  );;
+  );
 
 const run = async (interaction = CommandInteraction.prototype) => {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
 
-  if (!attachment && !user) return interaction.reply({
+  if (!attachment && !user) return await interaction.reply({
     content: '❌ You must specify one between "image" or "user"',
     ephemeral: true,
   });

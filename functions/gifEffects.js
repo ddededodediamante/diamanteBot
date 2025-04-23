@@ -1,4 +1,5 @@
-const { createCanvas, loadImage } = require("canvas");
+const { toValidPath } = require('./path');
+const { createCanvas, loadImage } = require("@napi-rs/canvas");
 const GIFEncoder = require("gifencoder");
 const gifFrames = require("gif-frames");
 
@@ -29,7 +30,7 @@ async function rainbow(buffer, contentType, interaction) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
 
   const framesLength = Array.isArray(frames) ? frames.length : 30;
-  await interaction.reply(
+  await interaction.editReply(
     `Processing frames... (Total frames: ${framesLength})`
   );
 
@@ -66,7 +67,7 @@ async function rainbow(buffer, contentType, interaction) {
 }
 
 async function boykisser(buffer, contentType, interaction) {
-  const spriteImage = await loadImage("./images/boykisser.png");
+  const spriteImage = await loadImage(toValidPath("./images/boykisser.png"));
   const spriteWidth = 465;
   const spriteHeight = 498;
   const spriteCount = 22;
@@ -76,7 +77,7 @@ async function boykisser(buffer, contentType, interaction) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 1;
 
-  await interaction.reply(
+  await interaction.editReply(
     `Processing frames... (Total frames: ${spriteCount})`
   );
 
@@ -119,7 +120,7 @@ async function boykisser(buffer, contentType, interaction) {
 
 async function compress(buffer, contentType, interaction) {
   if (String(contentType).split("/").at(-1) !== "gif") {
-    await interaction.reply({ content:"Only GIF files are supported for this effect.", flags:'Ephemeral' });
+    await interaction.editReply({ content:"Only GIF files are supported for this effect.", flags:'Ephemeral' });
     return 'cancel';
   }
 
@@ -129,7 +130,7 @@ async function compress(buffer, contentType, interaction) {
   const height = Math.max(1, frames[0].frameInfo.height / 2);
 
   const framesLength = frames.length;
-  await interaction.reply(`Compressing frames... (Total frames: ${framesLength})`);
+  await interaction.editReply(`Compressing frames... (Total frames: ${framesLength})`);
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
@@ -161,7 +162,7 @@ async function waveDistortAnimated(buffer, contentType, interaction) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  await interaction.reply(
+  await interaction.editReply(
     `Processing frames... (Total frames: ${framesLength})`
   );
 
@@ -227,7 +228,7 @@ async function violentSquish(buffer, contentType, interaction) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 20;
 
-  await interaction.reply(`processing frames... (total frames: ${framesLength})`);
+  await interaction.editReply(`processing frames... (total frames: ${framesLength})`);
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
@@ -271,7 +272,7 @@ async function rotate(buffer, contentType, interaction) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  await interaction.reply(`processing frames... (total frames: ${framesLength})`);
+  await interaction.editReply(`processing frames... (total frames: ${framesLength})`);
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
@@ -313,7 +314,7 @@ async function rotateCounterclockwise(buffer, contentType, interaction) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  await interaction.reply(`processing frames... (total frames: ${framesLength})`);
+  await interaction.editReply(`processing frames... (total frames: ${framesLength})`);
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);

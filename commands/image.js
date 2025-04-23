@@ -27,10 +27,7 @@ const data = new SlashCommandBuilder()
       .setName("effect")
       .setDescription("The effect to apply")
       .setRequired(true)
-      .addChoices(
-        { name: "dde's shirt", value: "dde_shirt" },
-        { name: "wave distort", value: "waveDistort" }
-      )
+      .setAutocomplete(true)
   )
   .addAttachmentOption((option) =>
     option
@@ -45,60 +42,63 @@ const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+async function run(interaction = CommandInteraction.prototype) {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
 
-  if (!attachment && !user) return await interaction.reply({
-    content: '❌ You must specify one between "image" or "user"',
-    ephemeral: true,
-  });
+  if (!attachment && !user) {
+    return interaction.reply({
+      content: '❌ You must specify one between "image" or "user"',
+      flags: 'Ephemeral',
+    });
+  }
+
+  if (typeof effects[effect] !== "function") {
+    return interaction.reply({
+      content: "❌ Unknown effect option",
+      flags: 'Ephemeral',
+    });
+  }
 
   try {
-    const imageBuffer = await axios.get(attachment ? attachment.url : user.displayAvatarURL({ forceStatic: true, extension: 'png' }), {
-      responseType: "arraybuffer",
-    });
+    await interaction.deferReply();
 
-    let resultBuffer;
+    const url = attachment
+      ? attachment.url
+      : user.displayAvatarURL({ forceStatic: true, extension: "png" });
+      
+    const response = await axios.get(url, { responseType: "arraybuffer" });
 
-    if (typeof effects[effect] !== "function") {
-      return interaction.reply({
-        content: "❌ Unknown effect option",
-        ephemeral: true,
+    const resultBuffer = await effects[effect](
+      Buffer.from(response.data),
+      interaction
+    );
+
+    if (!resultBuffer) {
+      return interaction.editReply({
+        content: "❌ Failed to generate an image",
+        flags: 'Ephemeral',
       });
-    } else {
-      resultBuffer = await effects[effect](
-        Buffer.from(imageBuffer.data),
-        interaction
-      );
     }
 
-    if (resultBuffer) {
-      const imageAttachment = new AttachmentBuilder(
-        resultBuffer,
-        { name: "output.png" },
-        interaction
-      );
-      await interaction.editReply({ files: [imageAttachment], content: "" });
-    } else {
-      await interaction.editReply("❌ Failed to generate an image");
-    }
+    const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });
+    return interaction.editReply({ files: [file], content: '' });
   } catch (error) {
     console.error(error);
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({
         content: "❌ Error processing the image",
-        flags: 'Ephemeral'
+        flags: 'Ephemeral',
       });
-    } else {
-      await interaction.reply({
-        content: "❌ Error processing the image",
-        flags: 'Ephemeral'
-      });
-    }
+    } 
+
+    return interaction.reply({
+      content: "❌ Error processing the image",
+      flags: 'Ephemeral',
+    });
   }
-};
+}
 
 module.exports = { data, run };

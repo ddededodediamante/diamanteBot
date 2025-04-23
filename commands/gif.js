@@ -27,15 +27,7 @@ const data = new SlashCommandBuilder()
       .setName("effect")
       .setDescription("The effect to apply")
       .setRequired(true)
-      .addChoices(
-        { name: "rainbow", value: "rainbow" },
-        { name: "boykisser", value: "boykisser" },
-        { name: "compress", value: "compress" },
-        { name: "animated wave distort", value: "waveDistortAnimated" },
-        { name: "violent squish", value: "violentSquish" },
-        { name: "rotate", value: "rotate" },
-        { name: "rotate (counterclockwise)", value: "rotateCounterclockwise" }
-      )
+      .setAutocomplete(true)
   )
   .addAttachmentOption((option) =>
     option
@@ -50,62 +42,71 @@ const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+async function run(interaction = CommandInteraction.prototype) {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
 
-  if (!attachment && !user) return await interaction.reply({
-    content: '❌ You must specify one between "image" or "user"',
-    ephemeral: true,
-  });
+  if (!attachment && !user) {
+    return interaction.reply({
+      content: '❌ You must specify either "image" or "user"',
+      flags: 'Ephemeral',
+    });
+  }
+
+  if (typeof effects[effect] !== "function") {
+    return interaction.reply({
+      content: "❌ Unknown effect option",
+      flags: 'Ephemeral',
+    });
+  }
 
   try {
-    const imageBuffer = await axios.get(attachment ? attachment.url : user.displayAvatarURL({ forceStatic: true, extension: 'png' }), {
-      responseType: "arraybuffer",
-    });
+    await interaction.deferReply();
 
-    let gifBuffer;
+    const url = attachment
+      ? attachment.url
+      : user.displayAvatarURL({ forceStatic: true, extension: "png" });
 
-    if (typeof effects[effect] !== "function") {
-      return await interaction.reply({
-        content: "❌ Unknown effect option",
-        ephemeral: true,
+    const response = await axios.get(url, { responseType: "arraybuffer" });
+    const inputBuffer = Buffer.from(response.data);
+    const inputType = attachment ? attachment.contentType : "image/png";
+
+    const gifBuffer = await effects[effect](
+      inputBuffer,
+      inputType,
+      interaction
+    );
+    if (gifBuffer === "cancel") {
+      return interaction.editReply({
+        content: "❌ Operation cancelled",
+        flags: 'Ephemeral',
       });
-    } else {
-      gifBuffer = await effects[effect](
-        Buffer.from(imageBuffer.data),
-        attachment ? attachment.contentType : 'image/png',
-        interaction
-      );
+    }
+    if (!gifBuffer) {
+      return interaction.editReply({
+        content: "❌ Failed to generate GIF",
+        flags: 'Ephemeral',
+      });
     }
 
-    if (gifBuffer === 'cancel') return;
-    else if (gifBuffer) {
-      const gifAttachment = new AttachmentBuilder(
-        gifBuffer,
-        { name: "output.gif" },
-        interaction
-      );
-      await interaction.editReply({ files: [gifAttachment], content: "" });
-    } else {
-      await interaction.editReply("❌ Failed to generate GIF");
-    }
+    const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
+    return interaction.editReply({ files: [file], content: '' });
   } catch (error) {
     console.error(error);
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content:"❌ Error processing the gif",
-        flags:'Ephemeral'
-      });
-    } else {
-      await interaction.reply({
-        content:"❌ Error processing the gif",
-        flags:'Ephemeral'
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({
+        content: "❌ Error processing the GIF",
+        flags: 'Ephemeral',
       });
     }
+
+    return interaction.reply({
+      content: "❌ Error processing the GIF",
+      flags: 'Ephemeral',
+    });
   }
-};
+}
 
 module.exports = { data, run };

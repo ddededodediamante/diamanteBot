@@ -1,104 +1,75 @@
 require("dotenv").config();
 
-const { Client, GatewayIntentBits, Routes, Collection, Events } = require("discord.js");
-const { REST } = require("@discordjs/rest");
-const axios = require("axios");
+const {
+  Client,
+  GatewayIntentBits,
+  Collection,
+  REST,
+  Routes,
+  Events,
+} = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-const client = new Client({ intents: Object.values(GatewayIntentBits) });
+const client = new Client({
+  intents: Object.values(GatewayIntentBits),
+});
 
-function reaquire(moduleName) {
-  delete require.cache[require.resolve(moduleName)];
-  return require(moduleName);
+function reload(modulePath) {
+  delete require.cache[require.resolve(modulePath)];
+  return require(modulePath);
 }
 
 function loadCommands() {
   client.commands = new Collection();
   const commandsPath = path.join(__dirname, "commands");
-  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".js"));
+  const commandFiles = fs
+    .readdirSync(commandsPath)
+    .filter((f) => f.endsWith(".js"));
 
   for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
+    const fullPath = path.join(commandsPath, file);
     try {
-      const command = reaquire(filePath);
-      if ("data" in command && "run" in command) {
-        client.commands.set(command.data.name, command);
+      const cmd = reload(fullPath);
+      if (cmd.data?.name && typeof cmd.run === "function") {
+        client.commands.set(cmd.data.name, cmd);
       } else {
-        console.warn(`Command at ${filePath} is missing required properties.`);
+        console.warn(`Skipping ${file}: missing data.name or run()`);
       }
-    } catch (error) {
-      console.error(`Error loading command ${file}:`, error);
+    } catch (err) {
+      console.error(`Error loading ${file}:`, err);
     }
   }
 }
-
 client.loadCommands = loadCommands;
-loadCommands();
 
-const rest = new REST({ version: "10" }).setToken(process.env.token);
-(async () => {
+client.on(Events.ClientReady, () => {
+  console.log("✅ Client ready");
+
   try {
-    await rest.put(Routes.applicationCommands(process.env.client_id), {
-      body: client.commands.map((cmd) => cmd.data.toJSON()),
-    });
-    console.log("✅ Slash commands registered");
+    const reloadEvents = reload("./functions/events.js");
+    reloadEvents(client);
+    console.log("✅ Events loaded");
   } catch (err) {
-    console.error("❌ Failed to register commands:", err);
+    console.error("❌ Failed to load events.js:", err);
   }
-})();
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isCommand()) return;
-
-  const command = client.commands.get(interaction.commandName);
-  if (!command || !command.run || !command.data)
-    return interaction.reply({
-      content: "❌ Unknown command",
-      ephemeral: true,
-    });
-
-  try {
-    await command.run(interaction);
-  } catch (error) {
-    console.error(error);
-
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({
-        content: "❌ There was an error while running this command",
-        flags: "Ephemeral",
+  const rest = new REST({ version: "10" }).setToken(process.env.token);
+  (async () => {
+    try {
+      await rest.put(Routes.applicationCommands(process.env.client_id), {
+        body: client.commands.map((c) => c.data.toJSON()),
       });
-    } else {
-      await interaction.reply({
-        content: "❌ There was an error while running this command",
-        flags: "Ephemeral",
-      });
+      console.log("✅ Commands registered");
+    } catch (err) {
+      console.error("❌ Command registration failed:", err);
     }
-  }
+  })();
 });
 
-client.on(Events.GuildMemberAdd, async (member) => {
-  const targetGuildId = "1011004713908576367";
-  const roleId = "1069722932558962700";
-
-  if (member.guild.id !== targetGuildId) return;
-
-  try {
-    const role = member.guild.roles.cache.get(roleId);
-    if (!role) return console.error("Role not found!");
-
-    await member.roles.add(role);
-  } catch (error) {
-    console.error("Failed to assign member role:", error);
-  }
-});
-
-client.on(Events.Error, (e) => {
-  console.error(e);
-});
-
-client.once(Events.ClientReady, () => {
-  console.log("✅ The bot is online");
-});
-
-client.login(process.env.token);
+client
+  .login(process.env.token)
+  .then(() => {
+    loadCommands();
+  })
+  .catch(console.error);

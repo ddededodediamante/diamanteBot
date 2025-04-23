@@ -46,14 +46,14 @@ const run = async (interaction = CommandInteraction.prototype) => {
                 name: 'Statistics',
                 value: `**Servers:** ${client.guilds.cache.size.toLocaleString()}\n`
                     + `**Users:** ${client.users.cache.size.toLocaleString()}\n`
-                    + `**Uptime:** ${uptimeString}\n`
-                    + `**Ping:** ${client.ws.ping}ms\n`,
+                    + `**Bot Uptime:** ${uptimeString}\n`
+                    + `**Ping:** ${client.ws.ping === -1 ? 'Loading...' : client.ws.ping + 'ms'}\n`,
                 inline: false
             },
             {
                 name: 'Software',
-                value: `<:discordjs:1353208449865093180> **Discord.js:** v${version}\n`
-                    + `<:NodeJS:1322134480546168902> **Node.js:** ${process.version}`,
+                value: `<:discordjs:1362290058085797898> **Discord.js:** v${version}\n`
+                    + `<:nodejs:1362290223949549618> **Node.js:** ${process.version}`,
                 inline: false
             },
             {

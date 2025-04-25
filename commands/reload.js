@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder,
   ApplicationIntegrationType,
   InteractionContextType,
-  CommandInteraction,
+  ChatInputCommandInteraction,
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -18,7 +18,7 @@ const data = new SlashCommandBuilder()
     ApplicationIntegrationType.UserInstall
   );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const { client } = interaction;
 
   if (interaction.user.id !== "694587798598058004")
@@ -36,8 +36,8 @@ const run = async (interaction = CommandInteraction.prototype) => {
   delete require.cache[require.resolve("../functions/events")];
   const setupEvents = require("../functions/events");
 
-  await client.loadCommands();
-  await setupEvents(client);
+  client.loadCommands();
+  setupEvents(client);
 
   return await interaction.reply({
     content: "✅ Reloaded succesfully",

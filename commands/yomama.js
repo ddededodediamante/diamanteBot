@@ -2,7 +2,7 @@ const {
     SlashCommandBuilder,
     ApplicationIntegrationType,
     InteractionContextType,
-    CommandInteraction
+    ChatInputCommandInteraction
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -18,7 +18,7 @@ const data = new SlashCommandBuilder()
         ApplicationIntegrationType.UserInstall
     );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     await interaction.reply('yo mama so big that she');
 };
 

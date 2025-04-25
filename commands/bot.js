@@ -2,7 +2,7 @@ const {
     SlashCommandBuilder,
     ApplicationIntegrationType,
     InteractionContextType,
-    CommandInteraction,
+    ChatInputCommandInteraction,
     EmbedBuilder,
     version
 } = require("discord.js");
@@ -21,7 +21,7 @@ const data = new SlashCommandBuilder()
         ApplicationIntegrationType.UserInstall
     );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     const { client } = interaction;
 
     const app = await client.application.fetch();
@@ -60,7 +60,6 @@ const run = async (interaction = CommandInteraction.prototype) => {
                 name: 'Hosting',
                 value: `**OS:** ${osInfo}\n`
                     + `**CPU:** ${cpuModel}\n`
-                    + `**Host Uptime:** ${hostUptime}\n`
                     + `**Memory Usage:** ${memoryUsage} MB`,
                 inline: false
             }

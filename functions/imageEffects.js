@@ -109,6 +109,19 @@ async function tombstone(buffer, _interaction) {
   return canvas.toBuffer("image/png");
 }
 
+async function businessman(buffer, _interaction) {
+  const image = await loadImage(buffer);
+  const foreground = await loadImage(toValidPath('../images/businessman.png'));
+
+  const canvas = createCanvas(foreground.width, foreground.height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(image, 162, 41, 79, 103);
+  ctx.drawImage(foreground, 0, 0);
+
+  return canvas.toBuffer("image/png");
+}
+
 module.exports = {
   ddeShirt,
   waveDistort,

@@ -1,3 +1,5 @@
+console.log("✅ index.js started");
+
 require("dotenv").config();
 
 const {
@@ -73,3 +75,6 @@ client
     loadCommands();
   })
   .catch(console.error);
+
+process.on('unhandledRejection', console.error);
+process.on('uncaughtException', console.error);

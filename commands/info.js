@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder,
   InteractionContextType,
   ApplicationIntegrationType,
-  CommandInteraction,
+  ChatInputCommandInteraction,
   EmbedBuilder
 } = require("discord.js");
 
@@ -21,12 +21,12 @@ const data = new SlashCommandBuilder()
   .addSubcommand((subcommand) =>
     subcommand
       .setName("server")
-      .setDescription("Get info for the current server")
+      .setDescription("Util | Get info for the current server")
   )
   .addSubcommand((subcommand) =>
     subcommand
       .setName("channel")
-      .setDescription("Get info for a channel")
+      .setDescription("Util | Get info for a channel")
       .addChannelOption((option) =>
         option
           .setName("target")
@@ -37,7 +37,7 @@ const data = new SlashCommandBuilder()
   .addSubcommand((subcommand) =>
     subcommand
       .setName("user")
-      .setDescription("Get info for a user")
+      .setDescription("Util | Get info for a user")
       .addUserOption((option) =>
         option
           .setName("target")
@@ -48,7 +48,7 @@ const data = new SlashCommandBuilder()
   .addSubcommand((subcommand) =>
     subcommand
       .setName("emoji")
-      .setDescription("Get info for an emoji")
+      .setDescription("Util | Get info for an emoji")
       .addStringOption((option) =>
         option
           .setName("target")
@@ -57,7 +57,7 @@ const data = new SlashCommandBuilder()
       )
   );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const guild = interaction.guild;
   const subcommand = interaction.options.getSubcommand();
   let embed = new EmbedBuilder();

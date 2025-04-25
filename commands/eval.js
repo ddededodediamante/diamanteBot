@@ -2,9 +2,9 @@ const {
   SlashCommandBuilder,
   ApplicationIntegrationType,
   InteractionContextType,
-  CommandInteraction,
   EmbedBuilder,
-  codeBlock
+  codeBlock,
+  ChatInputChatInputCommandInteraction
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -26,7 +26,7 @@ const data = new SlashCommandBuilder()
       .setRequired(true)
   );
 
-const run = async (interaction = CommandInteraction.prototype) => {
+const run = async (interaction = ChatInputChatInputCommandInteraction.prototype) => {
   if (interaction.user.id !== "694587798598058004") {
     return await interaction.reply({
       content: "❌ Not enough permissions",
@@ -37,7 +37,7 @@ const run = async (interaction = CommandInteraction.prototype) => {
 
   try {
     const start_time = new Date();
-    const result = eval(interaction.options.getString('code'));
+    const result = await eval(interaction.options.getString('code'));
     const end_time = new Date();
 
     embed.setTitle('Eval Successful');
@@ -54,9 +54,9 @@ const run = async (interaction = CommandInteraction.prototype) => {
   }
   
   if (interaction.replied || interaction.deferred) {
-    await interaction.followUp({ embeds: [embed], flags: 'Ephemeral' });
+    return await interaction.followUp({ embeds: [embed], flags: 'Ephemeral' });
   } else {
-    await interaction.reply({ embeds: [embed], flags: 'Ephemeral' });
+    return await interaction.reply({ embeds: [embed], flags: 'Ephemeral' });
   }
   }
 };

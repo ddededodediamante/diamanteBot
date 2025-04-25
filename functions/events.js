@@ -41,9 +41,7 @@ module.exports = async (client = Client.prototype) => {
 
   client.removeAllListeners();
 
-  client.on(
-    Events.InteractionCreate,
-    async (interaction = CommandInteraction.prototype) => {
+  client.on(Events.InteractionCreate, async (interaction = CommandInteraction.prototype) => {
       if (interaction.isAutocomplete()) {
         const focused = interaction.options.getFocused();
         let choices = [];
@@ -125,9 +123,7 @@ module.exports = async (client = Client.prototype) => {
     }
   });
 
-  client.on(
-    Events.GuildMemberRemove,
-    async (member = GuildMember.prototype) => {
+  client.on(Events.GuildMemberRemove, async (member = GuildMember.prototype) => {
       if (member.user.bot || member.guild.id !== settings.ddeCord.id) return;
 
       try {

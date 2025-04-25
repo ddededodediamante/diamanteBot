@@ -67,7 +67,7 @@ async function rainbow(buffer, contentType, interaction) {
 }
 
 async function boykisser(buffer, contentType, interaction) {
-  const spriteImage = await loadImage(toValidPath("./images/boykisser.png"));
+  const spriteImage = await loadImage(toValidPath("../images/boykisser.png"));
   const spriteWidth = 465;
   const spriteHeight = 498;
   const spriteCount = 22;

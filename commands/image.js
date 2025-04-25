@@ -2,7 +2,7 @@ const {
   SlashCommandBuilder,
   ApplicationIntegrationType,
   InteractionContextType,
-  CommandInteraction,
+  ChatInputCommandInteraction,
   AttachmentBuilder,
 } = require("discord.js");
 const { default: axios } = require("axios");
@@ -42,7 +42,7 @@ const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-async function run(interaction = CommandInteraction.prototype) {
+async function run(interaction = ChatInputCommandInteraction.prototype) {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");

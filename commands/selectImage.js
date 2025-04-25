@@ -39,7 +39,7 @@ const run = async (
   interaction.client.imageCache.set(interaction.user.id, img.url);
 
   await interaction.reply({
-    content: "✅ Image saved for your next `/image` or `/gif` call.",
+    content: "✅ Image saved for your next `/image` or `/gif` call",
     flags: "Ephemeral",
   });
 };

@@ -71,7 +71,12 @@ module.exports = async (client = Client.prototype) => {
         }
 
         return await interaction.respond(choices.slice(0, 25));
-      } else if (!interaction.isChatInputCommand()) return;
+      }
+      
+      if (
+        !interaction.isChatInputCommand() &&
+        !interaction.isContextMenuCommand()
+      ) return;
 
       const command = client.commands.get(interaction.commandName);
       if (!command || !command.run || !command.data)

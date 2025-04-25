@@ -52,8 +52,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
             },
             {
                 name: 'Software',
-                value: `<:discordjs:1362290058085797898> **Discord.js:** v${version}\n`
-                    + `<:nodejs:1362290223949549618> **Node.js:** ${process.version}`,
+                value: `<:discordjs:1365170283568169002> **Discord.js:** v${version}\n`
+                    + `<:nodejs:1365170327063363645> **Node.js:** ${process.version}`,
                 inline: false
             },
             {

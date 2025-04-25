@@ -2,11 +2,22 @@ const {
   ContextMenuCommandBuilder,
   ApplicationCommandType,
   MessageContextMenuCommandInteraction,
+  InteractionContextType,
+  ApplicationIntegrationType,
 } = require("discord.js");
 
 const data = new ContextMenuCommandBuilder()
   .setName("Select Image")
-  .setType(ApplicationCommandType.Message);
+  .setType(ApplicationCommandType.Message)
+  .setContexts(
+    InteractionContextType.BotDM,
+    InteractionContextType.Guild,
+    InteractionContextType.PrivateChannel
+  )
+  .setIntegrationTypes(
+    ApplicationIntegrationType.GuildInstall,
+    ApplicationIntegrationType.UserInstall
+  );
 
 const run = async (
   interaction = MessageContextMenuCommandInteraction.prototype
@@ -15,8 +26,7 @@ const run = async (
 
   const img = message.attachments.find(
     (i) =>
-      i.contentType?.startsWith("image/") ||
-      /\.(jpe?g|png|gif)$/i.test(i.name)
+      i.contentType?.startsWith("image/") || /\.(jpe?g|png|gif)$/i.test(i.name)
   );
 
   if (!img) {

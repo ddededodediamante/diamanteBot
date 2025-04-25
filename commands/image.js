@@ -47,28 +47,32 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
 
-  if (!attachment && !user) {
+  let targetUrl;
+  if (attachment) {
+    targetUrl = attachment.url;
+  } else if (user) {
+    targetUrl = user.displayAvatarURL({ forceStatic: true, extension: "png" });
+  } else if (interaction.client.imageCache.has(interaction.user.id)) {
+    targetUrl = interaction.client.imageCache.get(interaction.user.id);
+    interaction.client.imageCache.delete(interaction.user.id);
+  } else {
     return interaction.reply({
       content: '❌ You must specify one between "image" or "user"',
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 
   if (typeof effects[effect] !== "function") {
     return interaction.reply({
       content: "❌ Unknown effect option",
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 
   try {
     await interaction.deferReply();
 
-    const url = attachment
-      ? attachment.url
-      : user.displayAvatarURL({ forceStatic: true, extension: "png" });
-      
-    const response = await axios.get(url, { responseType: "arraybuffer" });
+    const response = await axios.get(targetUrl, { responseType: "arraybuffer" });
 
     const resultBuffer = await effects[effect](
       Buffer.from(response.data),
@@ -78,25 +82,25 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     if (!resultBuffer) {
       return interaction.editReply({
         content: "❌ Failed to generate an image",
-        flags: 'Ephemeral',
+        flags: "Ephemeral",
       });
     }
 
     const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });
-    return interaction.editReply({ files: [file], content: '' });
+    return interaction.editReply({ files: [file], content: "" });
   } catch (error) {
     console.error(error);
 
     if (interaction.deferred || interaction.replied) {
       return interaction.followUp({
         content: "❌ Error processing the image",
-        flags: 'Ephemeral',
+        flags: "Ephemeral",
       });
-    } 
+    }
 
     return interaction.reply({
       content: "❌ Error processing the image",
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 }

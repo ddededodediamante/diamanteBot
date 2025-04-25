@@ -129,5 +129,6 @@ module.exports = {
   grayscale,
   sepia,
   brighten,
-  tombstone
+  tombstone,
+  businessman
 };

@@ -17,6 +17,9 @@ const client = new Client({
   intents: Object.values(GatewayIntentBits),
 });
 
+client.imageCache = new Map();
+client.commands = new Collection();
+
 function reload(modulePath) {
   delete require.cache[require.resolve(modulePath)];
   return require(modulePath);

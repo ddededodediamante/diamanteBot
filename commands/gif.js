@@ -47,28 +47,32 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
 
-  if (!attachment && !user) {
+  let targetUrl;
+  if (attachment) {
+    targetUrl = attachment.url;
+  } else if (user) {
+    targetUrl = user.displayAvatarURL();
+  } else if (interaction.client.imageCache.has(interaction.user.id)) {
+    targetUrl = interaction.client.imageCache.get(interaction.user.id);
+    interaction.client.imageCache.delete(interaction.user.id);
+  } else {
     return interaction.reply({
       content: '❌ You must specify either "image" or "user"',
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 
   if (typeof effects[effect] !== "function") {
     return interaction.reply({
       content: "❌ Unknown effect option",
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 
   try {
     await interaction.deferReply();
 
-    const url = attachment
-      ? attachment.url
-      : user.displayAvatarURL({ forceStatic: true, extension: "png" });
-
-    const response = await axios.get(url, { responseType: "arraybuffer" });
+    const response = await axios.get(targetUrl, { responseType: "arraybuffer" });
     const inputBuffer = Buffer.from(response.data);
     const inputType = attachment ? attachment.contentType : "image/png";
 
@@ -80,31 +84,31 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     if (gifBuffer === "cancel") {
       return interaction.editReply({
         content: "❌ Operation cancelled",
-        flags: 'Ephemeral',
+        flags: "Ephemeral",
       });
     }
     if (!gifBuffer) {
       return interaction.editReply({
         content: "❌ Failed to generate GIF",
-        flags: 'Ephemeral',
+        flags: "Ephemeral",
       });
     }
 
     const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
-    return interaction.editReply({ files: [file], content: '' });
+    return interaction.editReply({ files: [file], content: "" });
   } catch (error) {
     console.error(error);
 
     if (interaction.deferred || interaction.replied) {
       return interaction.followUp({
         content: "❌ Error processing the GIF",
-        flags: 'Ephemeral',
+        flags: "Ephemeral",
       });
     }
 
     return interaction.reply({
       content: "❌ Error processing the GIF",
-      flags: 'Ephemeral',
+      flags: "Ephemeral",
     });
   }
 }

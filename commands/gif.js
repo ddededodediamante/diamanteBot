@@ -51,7 +51,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   if (attachment) {
     targetUrl = attachment.url;
   } else if (user) {
-    targetUrl = user.displayAvatarURL();
+    targetUrl = user.displayAvatarURL({ size: 1024 });
   } else if (interaction.client.imageCache.has(interaction.user.id)) {
     targetUrl = interaction.client.imageCache.get(interaction.user.id);
     interaction.client.imageCache.delete(interaction.user.id);
@@ -72,7 +72,9 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   try {
     await interaction.deferReply();
 
-    const response = await axios.get(targetUrl, { responseType: "arraybuffer" });
+    const response = await axios.get(targetUrl, {
+      responseType: "arraybuffer",
+    });
     const inputBuffer = Buffer.from(response.data);
     const inputType = attachment ? attachment.contentType : "image/png";
 
@@ -81,21 +83,11 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
       inputType,
       interaction
     );
-    if (gifBuffer === "cancel") {
-      return interaction.editReply({
-        content: "❌ Operation cancelled",
-        flags: "Ephemeral",
-      });
-    }
-    if (!gifBuffer) {
-      return interaction.editReply({
-        content: "❌ Failed to generate GIF",
-        flags: "Ephemeral",
-      });
-    }
+
+    if (gifBuffer === "cancel") return;
 
     const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
-    return interaction.editReply({ files: [file], content: "" });
+    return interaction.editReply({ files: [file], content: `Effect: \`${effect}\`` });
   } catch (error) {
     console.error(error);
 

@@ -29,19 +29,36 @@ module.exports = async (client = Client.prototype) => {
       "{user} is here.",
       "{user} has just landed.",
       "Woah! {user} is here!",
+      "Look who's here! It's {user}!",
+      "Guess who just showed up? {user}!",
+      "{user} slid into the chat.",
+      "Brace yourselves, {user} has arrived.",
+      "Say hello to our newest guest: {user}!",
+      "{user} just popped in.",
     ],
     leavingMessages: [
-      "{user} has just left...",
+      "{user} has just left.",
       "{user} vanished.",
       "Oh no, {user} left us!",
-      "That's one less {user}...",
       "Did {user} just leave? Aw man.",
+      "{user} ragequit.",
+      "Goodbye {user}, until next time.",
+      "Poof. {user} disappeared.",
+      "{user} dipped out.",
+      "{user} just peaced out.",
+      "{user} left the building.",
+      "And just like that, {user} is gone.",
+      "We'll miss you, {user}.",
+      "{user} logged off.",
+      "Later, {user}!",
     ],
   };
 
   client.removeAllListeners();
 
-  client.on(Events.InteractionCreate, async (interaction = CommandInteraction.prototype) => {
+  client.on(
+    Events.InteractionCreate,
+    async (interaction = CommandInteraction.prototype) => {
       if (interaction.isAutocomplete()) {
         const focused = interaction.options.getFocused();
         let choices = [];
@@ -52,37 +69,36 @@ module.exports = async (client = Client.prototype) => {
             value: key,
           }));
 
-          let filtered = initialChoices.filter((choice) =>
+          choices = initialChoices.filter((choice) =>
             choice.name.includes(focused.toLowerCase())
           );
-
-          choices = filtered.slice(0, 25);
         } else if (interaction.commandName === "gif") {
           let initialChoices = Object.keys(gifEffects).map((key) => ({
             name: key.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase(),
             value: key,
           }));
 
-          let filtered = initialChoices.filter((choice) =>
+          choices = initialChoices.filter((choice) =>
             choice.name.includes(focused.toLowerCase())
           );
-
-          choices = filtered.slice(0, 25);
         }
 
-        return await interaction.respond(choices.slice(0, 25));
+        return await interaction.respond(
+          choices.sort((a, b) => a.name.localeCompare(b.name)).slice(0, 25)
+        );
       }
-      
+
       if (
         !interaction.isChatInputCommand() &&
         !interaction.isContextMenuCommand()
-      ) return;
+      )
+        return;
 
       const command = client.commands.get(interaction.commandName);
       if (!command || !command.run || !command.data)
         return interaction.reply({
           content: "❌ Unknown command",
-          flags: 'Ephemeral',
+          flags: "Ephemeral",
         });
 
       try {
@@ -117,7 +133,7 @@ module.exports = async (client = Client.prototype) => {
       const randomMessage = array[Math.floor(Math.random() * array.length)];
 
       await settings.welcomeChannel.send({
-        content: `<:join:1362862914112978965> ${randomMessage.replace(
+        content: `<:join:1367235272533868687> ${randomMessage.replace(
           "{user}",
           member.toString()
         )}`,
@@ -128,7 +144,9 @@ module.exports = async (client = Client.prototype) => {
     }
   });
 
-  client.on(Events.GuildMemberRemove, async (member = GuildMember.prototype) => {
+  client.on(
+    Events.GuildMemberRemove,
+    async (member = GuildMember.prototype) => {
       if (member.user.bot || member.guild.id !== settings.ddeCord.id) return;
 
       try {
@@ -136,7 +154,7 @@ module.exports = async (client = Client.prototype) => {
         const randomMessage = array[Math.floor(Math.random() * array.length)];
 
         await settings.welcomeChannel.send({
-          content: `<:leave:1362863189104136343> ${randomMessage.replace(
+          content: `<:leave:1367235263104815145> ${randomMessage.replace(
             "{user}",
             member.toString()
           )}`,

@@ -51,7 +51,11 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   if (attachment) {
     targetUrl = attachment.url;
   } else if (user) {
-    targetUrl = user.displayAvatarURL({ forceStatic: true, extension: "png" });
+    targetUrl = user.displayAvatarURL({
+      forceStatic: true,
+      extension: "png",
+      size: 1024,
+    });
   } else if (interaction.client.imageCache.has(interaction.user.id)) {
     targetUrl = interaction.client.imageCache.get(interaction.user.id);
     interaction.client.imageCache.delete(interaction.user.id);
@@ -72,22 +76,17 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   try {
     await interaction.deferReply();
 
-    const response = await axios.get(targetUrl, { responseType: "arraybuffer" });
+    const response = await axios.get(targetUrl, {
+      responseType: "arraybuffer",
+    });
 
     const resultBuffer = await effects[effect](
       Buffer.from(response.data),
       interaction
     );
 
-    if (!resultBuffer) {
-      return interaction.editReply({
-        content: "❌ Failed to generate an image",
-        flags: "Ephemeral",
-      });
-    }
-
     const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });
-    return interaction.editReply({ files: [file], content: "" });
+    return interaction.editReply({ files: [file], content: `Effect: \`${effect}\`` });
   } catch (error) {
     console.error(error);
 

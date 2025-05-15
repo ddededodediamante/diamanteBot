@@ -3,7 +3,8 @@ const {
   InteractionContextType,
   ApplicationIntegrationType,
   ChatInputCommandInteraction,
-  EmbedBuilder
+  EmbedBuilder,
+  ChannelType,
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -66,114 +67,152 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     case "server": {
       if (!guild)
         return interaction.reply({
-          content: "❌ This command can only be used in a server I am on!",
+          content: "❌ You must use this command in a server",
           flags: "Ephemeral",
         });
 
+      const owner = await guild.fetchOwner();
+      const created = Math.floor(guild.createdTimestamp / 1000);
+
       embed
         .setTitle(`Server | ${guild.name}`)
-        .setThumbnail(guild.iconURL())
-        .addFields({
-          name: "Total Members",
-          value: `${guild.memberCount}`,
-          inline: true,
-        })
-        .setFooter({ text: String(guild.id) });
+        .setThumbnail(guild.iconURL({ dynamic: true }))
+        .addFields(
+          { name: "Owner", value: `${owner.user.tag}`, inline: true },
+          { name: "Created", value: `<t:${created}:f>`, inline: true },
+          { name: "Members", value: `${guild.memberCount}`, inline: true },
+          {
+            name: "Boosts",
+            value: `${guild.premiumSubscriptionCount || 0}`,
+            inline: true,
+          },
+          {
+            name: "Boost Tier",
+            value: `Tier ${guild.premiumTier}`,
+            inline: true,
+          },
+          { name: "Roles", value: `${guild.roles.cache.size}`, inline: true },
+          { name: "Emojis", value: `${guild.emojis.cache.size}`, inline: true }
+        )
+        .setFooter({ text: `ID: ${guild.id}` });
       break;
     }
     case "channel": {
       if (!guild)
         return interaction.reply({
-          content: "❌ This command can only be used in a server I am on!",
+          content: "❌ You must use this command in a server",
           flags: "Ephemeral",
         });
 
       const channel = interaction.options.getChannel("target");
+      const created = Math.floor(channel.createdTimestamp / 1000);
+
+      const fields = [
+        { name: "Type", value: ChannelType[channel.type], inline: true },
+        { name: "Created", value: `<t:${created}:f>`, inline: true },
+      ];
+
+      if (channel.type === ChannelType.GuildText) {
+        fields.push(
+          { name: "Topic", value: channel.topic || "None", inline: true },
+          { name: "NSFW", value: channel.nsfw ? "Yes" : "No", inline: true },
+          {
+            name: "Slowmode",
+            value: `${channel.rateLimitPerUser}s`,
+            inline: true,
+          }
+        );
+      }
 
       embed
         .setTitle(`Channel | ${channel.name}`)
-        .addFields({
-          name: "Type",
-          value: channel.type.toString(),
-          inline: true,
-        })
-        .setFooter({ text: String(channel.id) });
+        .addFields(fields)
+        .setFooter({ text: `ID: ${channel.id}` });
       break;
     }
     case "user": {
-      const user = interaction.options.getUser("target") ?? interaction.user;
-      const fetched = await user.fetch();
-      const timestamp = Math.floor((user.createdTimestamp ?? 0) / 1000);
+      const user = interaction.options.getUser("target") || interaction.user;
+      const member = guild ? guild.members.cache.get(user.id) : null;
+      
+      const created = Math.floor(user.createdTimestamp / 1000);
+      const joined = member ? Math.floor(member.joinedTimestamp / 1000) : null;
 
       embed
         .setTitle(`${user.bot ? "Bot" : "User"} | ${user.tag}`)
-        .setDescription(`
-          System User? ${user.system ? "✅" : "❌"}
-          Partial? ${user.partial ? "✅" : "❌"}
-        `.trim())
-        .setFields(
-          {
-            name: "Creation Date",
-            value: `<t:${timestamp}:R> | <t:${timestamp}:f>`
-          },
-          {
-            name: "Accent Color",
-            value: fetched.hexAccentColor ?? "Unknown"
-          }
-        )
         .setThumbnail(user.displayAvatarURL({ dynamic: true }))
-        .setColor(fetched.hexAccentColor ?? "Random")
-        .setFooter({ text: String(user.id) });
+        .addFields({
+          name: "Created",
+          value: `<t:${created}:f>`,
+          inline: true,
+        });
+
+      if (joined) {
+        embed.addFields({
+          name: "Joined",
+          value: `<t:${joined}:f>`,
+          inline: true,
+        });
+      }
+
+      if (member) {
+        if (member.nickname) {
+          embed.addFields({
+            name: "Nickname",
+            value: `${member.nickname}`,
+            inline: true,
+          });
+        }
+
+        embed.addFields({
+          name: "Roles",
+          inline: false,
+          value:
+            `Amount: ${member.roles.cache.size}\n` +
+            `> Highest: ${member.roles.highest.toString()}`,
+        });
+      }
+
+      embed.setFooter({ text: `ID: ${user.id}` });
       break;
     }
     case "emoji": {
-      const emojiInput = interaction.options.getString("target");
-      const customEmojiRegex = /<a?:\w+:(\d+)>/;
-      const match = emojiInput.trim().match(customEmojiRegex);
-      let emojiId = match ? match[1] : null;
+      const input = interaction.options.getString("target");
+      const custom = /<a?:\w+:(\d+)>/.exec(input);
+      let emoji;
+      if (custom) {
+        emoji =
+          guild?.emojis.cache.get(custom[1]) ||
+          interaction.client.emojis.cache.get(custom[1]);
+      }
 
-      if (emojiId) {
-        const emoji =
-          interaction.guild?.emojis?.cache?.get(emojiId) ??
-          interaction.client?.emojis?.cache?.get(emojiId);
-
-        if (emoji) {
-          embed
-            .setTitle("Emoji | " + emoji.name)
-            .setDescription(`Animated? ${emoji.animated ? "✅" : "❌"}`)
-            .setThumbnail(emoji.imageURL())
-            .setURL(emoji.imageURL())
-            .setFooter({ text: String(emoji.id) });
-        } else {
-          return interaction.reply({
-            content: "❌ Emoji was not found",
-            flags: "Ephemeral",
-          });
-        }
+      if (emoji) {
+        const created = Math.floor(emoji.createdTimestamp / 1000);
+        embed
+          .setTitle(`Emoji | ${emoji.name}`)
+          .setThumbnail(emoji.url)
+          .addFields(
+            {
+              name: "Animated",
+              value: emoji.animated ? "Yes" : "No",
+              inline: true,
+            },
+            { name: "Created", value: `<t:${created}:f>`, inline: true }
+          )
+          .setFooter({ text: `ID: ${emoji.id}` });
       } else {
-        let svgUrl, pngUrl;
-
-        try {
-          let codepoint = String(emojiInput).codePointAt(0).toString(16);
-
-          svgUrl = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${codepoint}.svg`;
-          pngUrl = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${codepoint}.png`;
-        } catch (error) {
-          console.error(error);
-        }
+        const code = String(input).codePointAt(0).toString(16);
+        const png = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${code}.png`;
+        const svg = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${code}.svg`;
 
         embed
-          .setTitle("Emoji | " + emojiInput)
-          .setDescription("`" + emojiInput + "`")
-          .setFields({
-            name: "URLs",
-            value:
-              typeof svgUrl === "string" && typeof svgUrl === "string"
-                ? `[PNG](${pngUrl}) | [SVG](${svgUrl})`
-                : "Unavailable",
-            inline: true,
-          })
-          .setThumbnail(pngUrl);
+          .setTitle(`Emoji | ${input}`)
+          .setThumbnail(png)
+          .addFields(
+            { name: "Unicode", value: `\`${input}\``, inline: true },
+            { name: "PNG URL", value: `[View](${png})`, inline: true },
+            { name: "SVG URL", value: `[View](${svg})`, inline: true }
+          )
+          .setFooter({ text: `Unicode: U+${code.toUpperCase()}` });
       }
       break;
     }

@@ -4,7 +4,7 @@ const {
   InteractionContextType,
   EmbedBuilder,
   codeBlock,
-  ChatInputChatInputCommandInteraction
+  ChatInputCommandInteraction
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -26,7 +26,7 @@ const data = new SlashCommandBuilder()
       .setRequired(true)
   );
 
-const run = async (interaction = ChatInputChatInputCommandInteraction.prototype) => {
+const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   if (interaction.user.id !== "694587798598058004") {
     return await interaction.reply({
       content: "❌ Not enough permissions",

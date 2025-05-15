@@ -9,9 +9,7 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
-    "ffmpeg-static": "^5.2.0",
     "gif-frames": "^1.0.1",
-    "gifencoder": "^2.0.1",
-    "matter-js": "^0.20.0"
+    "gifencoder": "^2.0.1"
   }
 }

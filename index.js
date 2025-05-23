@@ -48,7 +48,20 @@ function loadCommands() {
 }
 client.loadCommands = loadCommands;
 
-client.on(Events.ClientReady, () => {
+async function registerSlashCommands() {
+  try {
+    const rest = new REST({ version: "10" }).setToken(process.env.token);
+    await rest.put(Routes.applicationCommands(process.env.client_id), {
+      body: client.commands.map((c) => c.data.toJSON()),
+    });
+    console.log("✅ Commands registered");
+  } catch (err) {
+    console.error("❌ Command registration failed:", err);
+  }
+}
+client.registerSlashCommands = registerSlashCommands;
+
+client.on(Events.ClientReady, async () => {
   console.log("✅ Client ready");
 
   try {
@@ -59,17 +72,7 @@ client.on(Events.ClientReady, () => {
     console.error("❌ Failed to load events.js:", err);
   }
 
-  const rest = new REST({ version: "10" }).setToken(process.env.token);
-  (async () => {
-    try {
-      await rest.put(Routes.applicationCommands(process.env.client_id), {
-        body: client.commands.map((c) => c.data.toJSON()),
-      });
-      console.log("✅ Commands registered");
-    } catch (err) {
-      console.error("❌ Command registration failed:", err);
-    }
-  })();
+  await registerSlashCommands();
 });
 
 client

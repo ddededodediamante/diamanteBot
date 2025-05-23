@@ -4,7 +4,7 @@ const {
   InteractionContextType,
   EmbedBuilder,
   codeBlock,
-  ChatInputCommandInteraction
+  ChatInputCommandInteraction,
 } = require("discord.js");
 
 const data = new SlashCommandBuilder()
@@ -21,8 +21,8 @@ const data = new SlashCommandBuilder()
   )
   .addStringOption((option) =>
     option
-      .setName('code')
-      .setDescription('The JavaScript code to evaluate')
+      .setName("code")
+      .setDescription("The JavaScript code to evaluate")
       .setRequired(true)
   );
 
@@ -35,29 +35,35 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   } else {
     const embed = new EmbedBuilder();
 
-  try {
-    const start_time = new Date();
-    const result = await eval(interaction.options.getString('code'));
-    const end_time = new Date();
+    try {
+      const start_time = new Date();
+      const result = await eval(interaction.options.getString("code"));
+      const end_time = new Date();
 
-    embed.setTitle('Eval Successful');
-    embed.setColor('Green');
-    embed.setFields(
-      { name: 'Result', value: codeBlock(String(result)) },
-      { name: 'Type', value: codeBlock(typeof result) },
-      { name: 'Time (ms)', value: codeBlock(Math.abs(end_time - start_time).toString()) }
-    );
-  } catch (error) {
-    embed.setTitle('Eval Error');
-    embed.setColor('Red');
-    embed.setDescription(codeBlock(String(error)));
-  }
-  
-  if (interaction.replied || interaction.deferred) {
-    return await interaction.followUp({ embeds: [embed], flags: 'Ephemeral' });
-  } else {
-    return await interaction.reply({ embeds: [embed], flags: 'Ephemeral' });
-  }
+      embed.setTitle("Eval Successful");
+      embed.setColor("Green");
+      embed.setFields(
+        { name: "Result", value: codeBlock(String(result)) },
+        { name: "Type", value: codeBlock(typeof result) },
+        {
+          name: "Time (ms)",
+          value: codeBlock(Math.abs(end_time - start_time).toString()),
+        }
+      );
+    } catch (error) {
+      embed.setTitle("Eval Error");
+      embed.setColor("Red");
+      embed.setDescription(codeBlock(String(error)));
+    }
+
+    if (interaction.replied || interaction.deferred) {
+      return await interaction.followUp({
+        embeds: [embed],
+        flags: "Ephemeral",
+      });
+    } else {
+      return await interaction.reply({ embeds: [embed], flags: "Ephemeral" });
+    }
   }
 };
 

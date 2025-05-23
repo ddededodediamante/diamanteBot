@@ -2,8 +2,6 @@ const {
   SlashCommandBuilder,
   ApplicationIntegrationType,
   InteractionContextType,
-  EmbedBuilder,
-  codeBlock,
   ChatInputCommandInteraction,
 } = require("discord.js");
 
@@ -27,7 +25,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       flags: "Ephemeral",
     });
   } else {
-    await client.registerSlashCommands();
+    await interaction.client.registerSlashCommands();
     return await interaction.reply({
       content: "✅ Commands registered",
       flags: "Ephemeral",

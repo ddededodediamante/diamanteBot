@@ -61,7 +61,47 @@ async function registerSlashCommands() {
 }
 client.registerSlashCommands = registerSlashCommands;
 
-client.on(Events.ClientReady, async () => {
+const { getTodayEvent } = require("./functions/specialDay");
+const { set, get } = require("./functions/db");
+
+async function updateServerIcon(client) {
+  const guild = await client.guilds.fetch("1011004713908576367");
+  const event = getTodayEvent() || {
+    file: "default.png",
+    name: "Nothing",
+  };
+
+  if (!event || get("ddecord-event") === event.name) return;
+  set("ddecord-event", event.name);
+
+  const filePath = path.join(
+    __dirname,
+    "images/specialServerIcons",
+    event.file
+  );
+  if (!fs.existsSync(filePath)) {
+    console.warn("⚠️ Missing file:", event);
+    return;
+  }
+
+  try {
+    await guild.setIcon(fs.readFileSync(filePath));
+    console.log(`🔄 Server icon set to ${event.file}`);
+
+    if (event.file !== "default.png") {
+      const eventChannel = await guild.channels.fetch("1112121025249955910");
+      if (eventChannel && eventChannel.isTextBased()) {
+        await eventChannel.send(
+          `:star: **New event!** it's... ${event.name}! :star:`
+        );
+      }
+    }
+  } catch (err) {
+    console.error("❌ Failed to update icon or send message:", err);
+  }
+}
+
+client.once(Events.ClientReady, async () => {
   console.log("✅ Client ready");
 
   try {
@@ -73,6 +113,9 @@ client.on(Events.ClientReady, async () => {
   }
 
   await registerSlashCommands();
+
+  updateServerIcon(client);
+  setInterval(() => updateServerIcon(client), 60 * 60 * 1000);
 });
 
 client
@@ -97,11 +140,11 @@ const limiter = rateLimit({
   message: "Too many requests from this IP, please try again later.",
 });
 
-app.set('trust proxy', 1); 
+app.set("trust proxy", 1);
 
 app.use(limiter);
 app.use((_req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*'); 
+  res.header("Access-Control-Allow-Origin", "*");
   next();
 });
 

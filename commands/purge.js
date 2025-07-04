@@ -12,16 +12,16 @@ const data = new SlashCommandBuilder()
   .setDescription("Moderation | Deletes multiple messages")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
-  .addIntegerOption((opt) =>
-    opt
+  .addIntegerOption((option) =>
+    option
       .setName("count")
-      .setDescription("Number of messages to delete (2–100)")
+      .setDescription("Number of messages to delete (1 - 100)")
       .setRequired(true)
-      .setMinValue(2)
+      .setMinValue(1)
       .setMaxValue(100)
   )
-  .addStringOption((opt) =>
-    opt.setName("reason").setDescription("Reason for purging messages")
+  .addStringOption((option) =>
+    option.setName("reason").setDescription("Reason for purging messages")
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {

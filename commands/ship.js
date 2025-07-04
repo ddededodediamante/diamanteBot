@@ -6,10 +6,11 @@ const {
   InteractionContextType,
 } = require("discord.js");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { toValidPath } = require("../functions/path");
 
 const data = new SlashCommandBuilder()
   .setName("ship")
-  .setDescription("Calculate compatibility between two users!")
+  .setDescription("Fun | Calculate compatibility between two users")
   .setContexts(
     InteractionContextType.BotDM,
     InteractionContextType.Guild,
@@ -38,11 +39,22 @@ function calculateCompatibility(user1Id, user2Id) {
 }
 
 async function generateShipImage(user1, user2, compatibility) {
-  const canvas = createCanvas(700, 250);
-  const ctx = canvas.getContext("2d");
+  const brokenheart = await loadImage(
+    toValidPath("../images/broken-heart.svg")
+  );
+  const heart = await loadImage(toValidPath("../images/heart.svg"));
+  const revolvinghearts = await loadImage(
+    toValidPath("../images/revolving-hearts.svg")
+  );
 
-  ctx.fillStyle = "#2C2F33";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let heartImage;
+  if (compatibility <= 35) {
+    heartImage = brokenheart;
+  } else if (compatibility <= 70) {
+    heartImage = heart;
+  } else {
+    heartImage = revolvinghearts;
+  }
 
   const avatar1 = await loadImage(
     user1.displayAvatarURL({ extension: "png", size: 256 })
@@ -50,6 +62,9 @@ async function generateShipImage(user1, user2, compatibility) {
   const avatar2 = await loadImage(
     user2.displayAvatarURL({ extension: "png", size: 256 })
   );
+
+  const canvas = createCanvas(700, 250);
+  const ctx = canvas.getContext("2d");
 
   ctx.save();
   ctx.beginPath();
@@ -66,6 +81,14 @@ async function generateShipImage(user1, user2, compatibility) {
   ctx.clip();
   ctx.drawImage(avatar2, 475, 25, 200, 200);
   ctx.restore();
+
+  ctx.drawImage(
+    heartImage,
+    canvas.width / 2 - 75,
+    canvas.height / 2 - 75,
+    150,
+    150
+  );
 
   ctx.fillStyle = "#FFFFFF";
   ctx.font = "40px Arial";
@@ -88,7 +111,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   await interaction.reply({
     content: `❤️ Compatibility between ${user1} and ${user2}...`,
     files: [image],
-    allowedMentions: { parse: [], repliedUser: true },
+    allowedMentions: { parse: [] },
   });
 };
 

@@ -4,6 +4,7 @@ const {
   GuildMember,
   CommandInteraction,
 } = require("discord.js");
+const { get } = require("./db");
 
 delete require.cache[require.resolve("./imageEffects")];
 const imageEffects = require("./imageEffects");
@@ -18,40 +19,7 @@ module.exports = async (client = Client.prototype) => {
     ddeCord,
     memberRole: await ddeCord.roles.fetch("1069722932558962700", {
       cache: true,
-    }),
-    welcomeChannel: await ddeCord.channels.fetch("1112121025249955910", {
-      cache: true,
-    }),
-    welcomeMessages: [
-      "{user} just joined, say hi!",
-      "A wild {user} appeared.",
-      "Everyone, welcome {user}!",
-      "{user} is here.",
-      "{user} has just landed.",
-      "Woah! {user} is here!",
-      "Look who's here! It's {user}!",
-      "Guess who just showed up? {user}!",
-      "{user} slid into the chat.",
-      "Brace yourselves, {user} has arrived.",
-      "Say hello to our newest guest: {user}!",
-      "{user} just popped in.",
-    ],
-    leavingMessages: [
-      "{user} has just left.",
-      "{user} vanished.",
-      "Oh no, {user} left us!",
-      "Did {user} just leave? Aw man.",
-      "{user} ragequit.",
-      "Goodbye {user}, until next time.",
-      "Poof. {user} disappeared.",
-      "{user} dipped out.",
-      "{user} just peaced out.",
-      "{user} left the building.",
-      "And just like that, {user} is gone.",
-      "We'll miss you, {user}.",
-      "{user} logged off.",
-      "Later, {user}!",
-    ],
+    })
   };
 
   client.removeAllListeners();
@@ -120,48 +88,87 @@ module.exports = async (client = Client.prototype) => {
   );
 
   client.on(Events.GuildMemberAdd, async (member = GuildMember.prototype) => {
-    if (member.user.bot || member.guild.id !== settings.ddeCord.id) return;
+    if (member.user.bot) return;
 
-    try {
-      await member.roles.add(settings.memberRole);
-    } catch (error) {
-      console.error("Failed to assign member role:", error);
+    if (member.guild.id === settings.ddeCord.id) {
+      try {
+        await member.roles.add(settings.memberRole);
+      } catch (error) {
+        console.error("Failed to assign member role for ddeCord:", error);
+      }
     }
 
-    try {
-      const array = settings.welcomeMessages;
-      const randomMessage = array[Math.floor(Math.random() * array.length)];
+    const configKey = `welcome.${member.guild.id}`;
+    const config = get(configKey);
+    if (!config) return;
 
-      await settings.welcomeChannel.send({
-        content: `<:join:1367235272533868687> ${randomMessage.replace(
-          "{user}",
-          member.toString()
-        )}`,
-        allowedMentions: { parse: [] },
+    try {
+      const channelId = config.channel;
+      const messages = config.messages;
+      if (!channelId || !messages?.length) return;
+
+      const channel = await member.guild.channels.fetch(channelId, {
+        cache: true,
+      });
+      if (!channel || !channel.isTextBased()) return;
+
+      const message = messages[
+        Math.floor(Math.random() * messages.length)
+      ].replace("{user}", member.toString());
+
+      await channel.send({
+        content: `<:join:1367235272533868687> ${message}`.slice(0, 2000),
+        allowedMentions: { users: [member.id] },
       });
     } catch (error) {
       console.error("Failed to send welcome message:", error);
+    }
+
+    try {
+      const roleId = config.role;
+      if (!roleId) return;
+
+      const role = await member.guild.roles.fetch(roleId, {
+        cache: true,
+      });
+      if (!role) return;
+
+      await member.roles.add(role);
+    } catch (error) {
+      console.error("Failed to add role:", error);
     }
   });
 
   client.on(
     Events.GuildMemberRemove,
     async (member = GuildMember.prototype) => {
-      if (member.user.bot || member.guild.id !== settings.ddeCord.id) return;
+      if (member.user.bot) return;
+
+      const configKey = `farewell.${member.guild.id}`;
+      const config = get(configKey);
+      if (!config) return;
 
       try {
-        const array = settings.leavingMessages;
-        const randomMessage = array[Math.floor(Math.random() * array.length)];
+        const channelId = config.channel;
+        const messages = config.messages;
 
-        await settings.welcomeChannel.send({
-          content: `<:leave:1367235263104815145> ${randomMessage.replace(
-            "{user}",
-            member.toString()
-          )}`,
-          allowedMentions: { parse: [] },
+        if (!channelId || !messages?.length) return;
+
+        const channel = await member.guild.channels.fetch(channelId, {
+          cache: true,
+        });
+        if (!channel || !channel.isTextBased()) return;
+
+        const message = messages[
+          Math.floor(Math.random() * messages.length)
+        ].replace("{user}", member.toString());
+
+        await channel.send({
+          content: `<:leave:1367235263104815145> ${message}`.slice(0, 2000),
+          allowedMentions: { users: [member.id] },
         });
       } catch (error) {
-        console.error("Failed to send leave message:", error);
+        console.error("Failed to send farewell message:", error);
       }
     }
   );

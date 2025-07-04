@@ -12,11 +12,11 @@ const data = new SlashCommandBuilder()
   .setDescription("Moderation | Kicks a member from the server")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
-  .addUserOption((opt) =>
-    opt.setName("target").setDescription("The member to kick").setRequired(true)
+  .addUserOption((option) =>
+    option.setName("target").setDescription("The member to kick").setRequired(true)
   )
-  .addStringOption((opt) =>
-    opt.setName("reason").setDescription("The reason for the kick")
+  .addStringOption((option) =>
+    option.setName("reason").setDescription("The reason for the kick")
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {

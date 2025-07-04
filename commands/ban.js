@@ -28,7 +28,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     !interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers)
   ) {
     return interaction.reply({
-      content: "❌ You lack the **Ban Members** permission",
+      content: "❌ You lack the `Ban Members` permission to do this",
       flags: "Ephemeral",
     });
   }

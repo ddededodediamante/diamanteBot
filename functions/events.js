@@ -4,7 +4,7 @@ const {
   GuildMember,
   CommandInteraction,
 } = require("discord.js");
-const { get } = require("./db");
+const { get, set } = require("./db");
 
 delete require.cache[require.resolve("./imageEffects")];
 const imageEffects = require("./imageEffects");
@@ -13,15 +13,6 @@ delete require.cache[require.resolve("./gifEffects")];
 const gifEffects = require("./gifEffects");
 
 module.exports = async (client = Client.prototype) => {
-  const ddeCord = await client.guilds.fetch("1011004713908576367");
-
-  const settings = {
-    ddeCord,
-    memberRole: await ddeCord.roles.fetch("1069722932558962700", {
-      cache: true,
-    })
-  };
-
   client.removeAllListeners();
 
   client.on(
@@ -90,14 +81,6 @@ module.exports = async (client = Client.prototype) => {
   client.on(Events.GuildMemberAdd, async (member = GuildMember.prototype) => {
     if (member.user.bot) return;
 
-    if (member.guild.id === settings.ddeCord.id) {
-      try {
-        await member.roles.add(settings.memberRole);
-      } catch (error) {
-        console.error("Failed to assign member role for ddeCord:", error);
-      }
-    }
-
     const configKey = `welcome.${member.guild.id}`;
     const config = get(configKey);
     if (!config) return;
@@ -105,21 +88,22 @@ module.exports = async (client = Client.prototype) => {
     try {
       const channelId = config.channel;
       const messages = config.messages;
-      if (!channelId || !messages?.length) return;
+      if (channelId || messages?.length > 0) {
+        const channel = await member.guild.channels.fetch(channelId, {
+          cache: true,
+        });
 
-      const channel = await member.guild.channels.fetch(channelId, {
-        cache: true,
-      });
-      if (!channel || !channel.isTextBased()) return;
+        if (channel || channel.isTextBased()) {
+          const message = messages[
+            Math.floor(Math.random() * messages.length)
+          ].replace("{user}", member.toString());
 
-      const message = messages[
-        Math.floor(Math.random() * messages.length)
-      ].replace("{user}", member.toString());
-
-      await channel.send({
-        content: `<:join:1367235272533868687> ${message}`.slice(0, 2000),
-        allowedMentions: { users: [member.id] },
-      });
+          await channel.send({
+            content: `<:join:1367235272533868687> ${message}`.slice(0, 2000),
+            allowedMentions: { users: [member.id] },
+          });
+        }
+      }
     } catch (error) {
       console.error("Failed to send welcome message:", error);
     }
@@ -172,6 +156,102 @@ module.exports = async (client = Client.prototype) => {
       }
     }
   );
+
+  client.on(Events.MessageCreate, async (message) => {
+    if (message.author.bot) return;
+
+    const configKey = `counting.${message.guildId}`;
+    const config = get(configKey);
+    if (!config) return;
+
+    const { channel: channelId, resetOnWrong = false } = config;
+    let { count = 0, lastUser, mistakeThreadId } = config;
+
+    if (message.channelId !== channelId) return;
+
+    const got = parseInt(message.content.trim(), 10);
+    if (isNaN(got)) return;
+
+    if (message.author.id === lastUser) {
+      if (message.deletable) return message.delete();
+      return message.react("❌");
+    }
+
+    const expected = count + 1;
+
+    if (got === expected) {
+      set(configKey, {
+        ...config,
+        count: expected,
+        lastUser: message.author.id,
+      });
+
+      return await message.react("✅").catch(() => {});
+    } 
+
+    if (resetOnWrong) {
+      set(configKey, { ...config, count: 0, lastUser: undefined });
+      if (message.deletable) message.delete();
+      return message.reply(
+        `❌ Wrong number! Count has been reset. The next number is **1**.`
+      );
+    }
+
+    let thread;
+    try {
+      if (mistakeThreadId) {
+        thread = await client.channels.fetch(mistakeThreadId);
+        if (thread.isThread() && thread.archived) {
+          await thread.setArchived(false, "Reopening mistakes thread");
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching mistakes thread:", err);
+      thread = null;
+    }
+
+    if (!thread || !thread.isThread()) {
+      try {
+        thread = await message.channel.threads.create({
+          name: "Counting Mistakes",
+          autoArchiveDuration: 60,
+          reason: "Initializing mistakes thread",
+        });
+        mistakeThreadId = thread.id;
+        set(configKey, { ...config, mistakeThreadId });
+      } catch (err) {
+        console.error("Could not create mistakes thread:", err);
+        thread = null;
+      }
+    }
+
+    const notice = `❌ <@${message.author.id}> posted **${got}**, but the next number should be **${expected}**.`;
+    let sentInThread = false;
+    if (thread && thread.isThread()) {
+      try {
+        await thread.send(notice);
+        sentInThread = true;
+      } catch (err) {
+        console.error("Failed to send counting mistake in thread:", err);
+      }
+    }
+
+    if (!sentInThread) {
+      try {
+        await message.author.send(
+          `❌ In <#${message.channelId}>, you sent **${got}**, but the next number should be **${expected}**.`
+        );
+      } catch (err) {
+        console.warn(`Failed to DM user ${message.author.tag} for counting mistake`);
+      }
+    }
+
+    if (message.deletable) {
+      await message.delete();
+    } else {
+      await message.react("❌").catch(() => {});
+    }
+  });
 
   client.on(Events.Error, (err) => {
     console.error(err);

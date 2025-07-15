@@ -59,12 +59,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const subcommand = interaction.options.getSubcommand();
   let embed = new EmbedBuilder();
 
-  if (!guild)
-    return interaction.reply({
-      content: "❌ This command can only be used in a server",
-      ephemeral: true,
-    });
-
   if (
     !interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)
   )
@@ -74,7 +68,9 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     });
 
   const configKey = `welcome.${guild.id}`;
-  const config = get(configKey) || {};
+  const config = get(configKey) || {
+    messages: ["{user} just joined, say hi!"],
+  };
 
   switch (subcommand) {
     case "channel": {

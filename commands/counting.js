@@ -11,33 +11,35 @@ const {
 const { get, set } = require("../functions/db");
 
 const data = new SlashCommandBuilder()
-  .setName("farewell")
-  .setDescription("Util | Farewell new users with custom messages")
+  .setName("counting")
+  .setDescription("Fun | Create a counting channel")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
   .addSubcommand((sub) =>
     sub
       .setName("channel")
-      .setDescription("Set the channel for farewell messages")
+      .setDescription("Setup the channel for counting")
       .addChannelOption((opt) =>
         opt
           .setName("target")
-          .setDescription("Channel to send farewell messages")
+          .setDescription("The channel to set as counting")
           .addChannelTypes(ChannelType.GuildText)
           .setRequired(true)
       )
   )
   .addSubcommand((sub) =>
     sub
-      .setName("messages")
-      .setDescription("Set farewell messages, separated by '/'")
-      .addStringOption((opt) =>
+      .setName("reset-on-wrong")
+      .setDescription("If an user counts wrong, the count will be reset")
+      .addBooleanOption((opt) =>
         opt
-          .setName("string")
-          .setDescription("Messages separated by '/', use {user} for username")
+          .setName("active")
+          .setDescription("Whenever resetting is active or not")
           .setRequired(true)
-          .setMaxLength(1500)
       )
+  )
+  .addSubcommand((sub) =>
+    sub.setName("reset").setDescription("Reset the count manually")
   )
   .addSubcommand((sub) =>
     sub.setName("disable").setDescription("Disable farewell messages")
@@ -56,10 +58,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       ephemeral: true,
     });
 
-  const configKey = `farewell.${guild.id}`;
-  const config = get(configKey) || {
-    messages: ["{user} has just left."],
-  };
+  const configKey = `counting.${guild.id}`;
+  const config = get(configKey) || { resetOnWrong: false, count: 0 };
 
   switch (subcommand) {
     case "channel": {
@@ -68,36 +68,40 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       config.channel = channel.id;
       set(configKey, config);
 
+      await channel.send(
+        "Counting was setup on this channel. The next number is **1**!"
+      );
+
       embed
-        .setTitle("✅ Farewell Channel Set")
-        .setDescription(`Farewell messages will be sent in ${channel}`);
+        .setTitle("✅ Counting Channel Set")
+        .setDescription(`Users can start counting in ${channel}`);
       break;
     }
-    case "messages": {
-      const input = interaction.options.getString("string");
-      const messages = input
-        .split("/")
-        .map((msg) => msg.trim())
-        .filter(Boolean);
+    case "reset-on-wrong": {
+      const active = interaction.options.getBoolean("active");
 
-      if (!messages.length)
-        return interaction.reply({
-          content: "❌ You must provide at least one message",
-          ephemeral: true,
-        });
-
-      config.messages = messages;
+      config.resetOnWrong = active;
       set(configKey, config);
 
       embed
-        .setTitle("✅ Farewell Messages Set")
-        .setDescription(`Saved ${messages.length} message(s)`);
+        .setTitle("✅ Configuration Changed")
+        .setDescription(`Configuration \`reset on wrong\` set to ${active}`);
+      break;
+    }
+    case "reset": {
+      config.count = 0;
+      delete config.lastUser;
+      set(configKey, config);
+
+      embed
+        .setTitle("✅ Count Reseted")
+        .setDescription(`The count has been reseted. The next number is **1**.`);
       break;
     }
     case "disable": {
       if (!config || !config.channel)
         return interaction.reply({
-          content: "❌ Farewell messages were already disabled",
+          content: "❌ Counting channel was already disabled",
           ephemeral: true,
         });
 
@@ -105,8 +109,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       set(configKey, config);
 
       embed
-        .setTitle("✅ Farewell Disabled")
-        .setDescription(`Farewell messages are now disabled`);
+        .setTitle("✅ Counting Disabled")
+        .setDescription(`The counting channel is now disabled`);
       break;
     }
     default:

@@ -33,6 +33,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       flags: "Ephemeral",
     });
   } else {
+    await interaction.deferReply({ flags:'Ephemeral' });
     const embed = new EmbedBuilder();
 
     try {

@@ -6,6 +6,7 @@ const {
   AttachmentBuilder,
 } = require("discord.js");
 const { default: axios } = require("axios");
+const { Worker } = require("worker_threads");
 
 delete require.cache[require.resolve("../functions/gifEffects")];
 const effects = require("../functions/gifEffects");
@@ -58,14 +59,14 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   } else {
     return interaction.reply({
       content: '❌ You must specify either "image" or "user"',
-      flags: "Ephemeral",
+      ephemeral: true,
     });
   }
 
   if (typeof effects[effect] !== "function") {
     return interaction.reply({
       content: "❌ Unknown effect option",
-      flags: "Ephemeral",
+      ephemeral: true,
     });
   }
 
@@ -78,29 +79,66 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     const inputBuffer = Buffer.from(response.data);
     const inputType = attachment ? attachment.contentType : "image/png";
 
-    const gifBuffer = await effects[effect](
-      inputBuffer,
-      inputType,
-      interaction
-    );
+    const gifResult = await new Promise((resolve, reject) => {
+      const workerCode = `
+        const { parentPort, workerData } = require('worker_threads');
+        const effects = require(${JSON.stringify(
+          require.resolve("../functions/gifEffects")
+        )});
+        (async () => {
+          try {
+            const out = await effects[workerData.effect](Buffer.from(workerData.buffer), workerData.contentType);
+            parentPort.postMessage(out);
+          } catch (err) {
+            parentPort.postMessage({ __ERR: err.message });
+          }
+        })();
+      `;
+      const worker = new Worker(workerCode, {
+        eval: true,
+        workerData: {
+          effect,
+          buffer: inputBuffer,
+          contentType: inputType,
+        },
+      });
 
-    if (gifBuffer === "cancel") return;
+      worker.once("message", (msg) => {
+        if (msg && msg.__ERR) return reject(new Error(msg.__ERR));
+        resolve(msg);
+        worker.terminate();
+      });
+      worker.once("error", (err) => {
+        worker.terminate();
+        reject(err);
+      });
+      worker.once("exit", (code) => {
+        if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
+      });
+    });
 
-    const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
-    return interaction.editReply({ files: [file], content: `Effect: \`${effect}\`` });
-  } catch (error) {
-    console.error(error);
-
-    if (interaction.deferred || interaction.replied) {
-      return interaction.followUp({
-        content: "❌ Error processing the GIF",
-        flags: "Ephemeral",
+    if (gifResult === "only_gif") {
+      return await interaction.editReply({
+        content: "❌ Only GIF files are supported for this effect",
       });
     }
 
-    return interaction.reply({
-      content: "❌ Error processing the GIF",
-      flags: "Ephemeral",
+    const gifBuffer = Buffer.isBuffer(gifResult)
+      ? gifResult
+      : Buffer.from(gifResult);
+    const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
+
+    return interaction.editReply({
+      files: [file],
+      content: `Effect: \`${effect}\``,
+    });
+  } catch (error) {
+    console.error(error);
+    const method =
+      interaction.deferred || interaction.replied ? "followUp" : "reply";
+    return interaction[method]({
+      content: "❌ There was an error while processing the GIF",
+      ephemeral: true,
     });
   }
 }

@@ -71,6 +71,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
           flags: "Ephemeral",
         });
 
+      const members = await guild.members.fetch();
+      const total = members.size;
+      const bots = members.filter((member) => member.user.bot).size;
+      const humans = total - bots;
+
       const owner = await guild.fetchOwner();
       const created = Math.floor(guild.createdTimestamp / 1000);
 
@@ -78,21 +83,26 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         .setTitle(`Server | ${guild.name}`)
         .setThumbnail(guild.iconURL({ dynamic: true }))
         .addFields(
-          { name: "Owner", value: `${owner.user.tag}`, inline: true },
-          { name: "Created", value: `<t:${created}:f>`, inline: true },
-          { name: "Members", value: `${guild.memberCount}`, inline: true },
+          { name: "👑 Owner", value: `${owner.user.tag} (${owner.toString()})` },
+          { name: "📅 Created", value: `<t:${created}:f>` },
           {
-            name: "Boosts",
-            value: `${guild.premiumSubscriptionCount || 0}`,
-            inline: true,
+            name: "👥 Members",
+            value: `Total: ${total}\n> Humans: ${humans}\n> Bots: ${bots}`,
           },
           {
-            name: "Boost Tier",
-            value: `Tier ${guild.premiumTier}`,
-            inline: true,
+            name: "<:boost:1394133035728764988> Boosts",
+            value: `Amount: ${guild.premiumSubscriptionCount || 0}\nTier ${
+              guild.premiumTier
+            }`,
           },
-          { name: "Roles", value: `${guild.roles.cache.size}`, inline: true },
-          { name: "Emojis", value: `${guild.emojis.cache.size}`, inline: true }
+          {
+            name: "🏅 Roles",
+            value: `Total: ${guild.roles.cache.size}\n> Highest: ${guild.roles.highest}`,
+          },
+          {
+            name: "😀 Emojis",
+            value: `Total: ${guild.emojis.cache.size}`,
+          }
         )
         .setFooter({ text: `ID: ${guild.id}` });
       break;
@@ -119,7 +129,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
           {
             name: "Slowmode",
             value: `${channel.rateLimitPerUser}s`,
-            inline: true,
           }
         );
       }
@@ -133,7 +142,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     case "user": {
       const user = interaction.options.getUser("target") || interaction.user;
       const member = guild ? guild.members.cache.get(user.id) : null;
-      
+
       const created = Math.floor(user.createdTimestamp / 1000);
       const joined = member ? Math.floor(member.joinedTimestamp / 1000) : null;
 
@@ -143,14 +152,12 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         .addFields({
           name: "Created",
           value: `<t:${created}:f>`,
-          inline: true,
         });
 
       if (joined) {
         embed.addFields({
           name: "Joined",
           value: `<t:${joined}:f>`,
-          inline: true,
         });
       }
 
@@ -159,7 +166,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
           embed.addFields({
             name: "Nickname",
             value: `${member.nickname}`,
-            inline: true,
           });
         }
 
@@ -194,7 +200,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
             {
               name: "Animated",
               value: emoji.animated ? "Yes" : "No",
-              inline: true,
             },
             { name: "Created", value: `<t:${created}:f>`, inline: true }
           )

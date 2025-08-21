@@ -4,7 +4,7 @@ const {
   GuildMember,
   CommandInteraction,
 } = require("discord.js");
-const { get, set } = require("./db");
+const Servers = require("../models/serverSchema.js");
 
 delete require.cache[require.resolve("./imageEffects")];
 const imageEffects = require("./imageEffects");
@@ -14,6 +14,35 @@ const gifEffects = require("./gifEffects");
 
 module.exports = async (client = Client.prototype) => {
   client.removeAllListeners();
+
+  client.on(Events.GuildCreate, async (guild) => {
+    try {
+      let existing = await Servers.findOne({ id: guild.id });
+      if (!existing) {
+        await Servers.create({
+          id: guild.id,
+          welcome: { channel: null, messages: [], role: null },
+          farewell: { channel: null, messages: [] },
+          counting: {
+            channel: null,
+            count: 0,
+            lastUser: null,
+            mistakeThreadId: null,
+            resetOnWrong: false,
+          },
+        });
+        console.log(
+          `✅ Created config for new guild: ${guild.name} (${guild.id})`
+        );
+      } else {
+        console.log(
+          `ℹ️ Guild already exists in DB: ${guild.name} (${guild.id})`
+        );
+      }
+    } catch (err) {
+      console.error(`❌ Failed to create config for guild ${guild.id}:`, err);
+    }
+  });
 
   client.on(
     Events.InteractionCreate,
@@ -64,16 +93,12 @@ module.exports = async (client = Client.prototype) => {
         return await command.run(interaction);
       } catch (error) {
         console.error(error);
-
-        if (interaction.replied || interaction.deferred) {
-          return await interaction.followUp(
-            "❌ There was an error while running this command"
-          );
-        } else {
-          return await interaction.reply(
-            "❌ There was an error while running this command"
-          );
-        }
+        const method =
+          interaction.deferred || interaction.replied ? "followUp" : "reply";
+        return interaction[method]({
+          content: "❌ There was an error while running this command",
+          flags: "Ephemeral",
+        });
       }
     }
   );
@@ -81,19 +106,17 @@ module.exports = async (client = Client.prototype) => {
   client.on(Events.GuildMemberAdd, async (member = GuildMember.prototype) => {
     if (member.user.bot) return;
 
-    const configKey = `welcome.${member.guild.id}`;
-    const config = get(configKey);
-    if (!config) return;
+    const config = await Servers.findOne({ id: member.guild.id });
+    if (!config?.welcome) return;
 
     try {
-      const channelId = config.channel;
-      const messages = config.messages;
-      if (channelId || messages?.length > 0) {
+      const { channel: channelId, messages, role: roleId } = config.welcome;
+      if (channelId && messages?.length > 0) {
         const channel = await member.guild.channels.fetch(channelId, {
           cache: true,
         });
 
-        if (channel || channel.isTextBased()) {
+        if (channel?.isTextBased()) {
           const message = messages[
             Math.floor(Math.random() * messages.length)
           ].replace("{user}", member.toString());
@@ -104,22 +127,15 @@ module.exports = async (client = Client.prototype) => {
           });
         }
       }
+
+      if (roleId) {
+        const role = await member.guild.roles.fetch(roleId, { cache: true });
+        if (role) {
+          await member.roles.add(role);
+        }
+      }
     } catch (error) {
-      console.error("Failed to send welcome message:", error);
-    }
-
-    try {
-      const roleId = config.role;
-      if (!roleId) return;
-
-      const role = await member.guild.roles.fetch(roleId, {
-        cache: true,
-      });
-      if (!role) return;
-
-      await member.roles.add(role);
-    } catch (error) {
-      console.error("Failed to add role:", error);
+      console.error("Failed to send welcome message or add role:", error);
     }
   });
 
@@ -128,20 +144,17 @@ module.exports = async (client = Client.prototype) => {
     async (member = GuildMember.prototype) => {
       if (member.user.bot) return;
 
-      const configKey = `farewell.${member.guild.id}`;
-      const config = get(configKey);
-      if (!config) return;
+      const config = await Servers.findOne({ id: member.guild.id });
+      if (!config?.farewell) return;
 
       try {
-        const channelId = config.channel;
-        const messages = config.messages;
-
+        const { channel: channelId, messages } = config.farewell;
         if (!channelId || !messages?.length) return;
 
         const channel = await member.guild.channels.fetch(channelId, {
           cache: true,
         });
-        if (!channel || !channel.isTextBased()) return;
+        if (!channel?.isTextBased()) return;
 
         const message = messages[
           Math.floor(Math.random() * messages.length)
@@ -158,14 +171,13 @@ module.exports = async (client = Client.prototype) => {
   );
 
   client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
+    if (message.author.bot || !message.guildId) return;
 
-    const configKey = `counting.${message.guildId}`;
-    const config = get(configKey);
-    if (!config) return;
+    const config = await Servers.findOne({ id: message.guildId });
+    if (!config?.counting) return;
 
-    const { channel: channelId, resetOnWrong = false } = config;
-    let { count = 0, lastUser, mistakeThreadId } = config;
+    const { channel: channelId, resetOnWrong = false } = config.counting;
+    let { count = 0, lastUser, mistakeThreadId } = config.counting;
 
     if (message.channelId !== channelId) return;
 
@@ -180,17 +192,23 @@ module.exports = async (client = Client.prototype) => {
     const expected = count + 1;
 
     if (got === expected) {
-      set(configKey, {
-        ...config,
-        count: expected,
-        lastUser: message.author.id,
-      });
-
+      await Servers.updateOne(
+        { id: message.guildId },
+        {
+          $set: {
+            "counting.count": expected,
+            "counting.lastUser": message.author.id,
+          },
+        }
+      );
       return await message.react("✅").catch(() => {});
-    } 
+    }
 
     if (resetOnWrong) {
-      set(configKey, { ...config, count: 0, lastUser: undefined });
+      await Servers.updateOne(
+        { id: message.guildId },
+        { $set: { "counting.count": 0, "counting.lastUser": null } }
+      );
       if (message.deletable) message.delete();
       return message.reply(
         `❌ Wrong number! Count has been reset. The next number is **1**.`
@@ -201,7 +219,7 @@ module.exports = async (client = Client.prototype) => {
     try {
       if (mistakeThreadId) {
         thread = await client.channels.fetch(mistakeThreadId);
-        if (thread.isThread() && thread.archived) {
+        if (thread?.isThread() && thread.archived) {
           await thread.setArchived(false, "Reopening mistakes thread");
         }
       }
@@ -210,7 +228,7 @@ module.exports = async (client = Client.prototype) => {
       thread = null;
     }
 
-    if (!thread || !thread.isThread()) {
+    if (!thread?.isThread()) {
       try {
         thread = await message.channel.threads.create({
           name: "Counting Mistakes",
@@ -218,7 +236,10 @@ module.exports = async (client = Client.prototype) => {
           reason: "Initializing mistakes thread",
         });
         mistakeThreadId = thread.id;
-        set(configKey, { ...config, mistakeThreadId });
+        await Servers.updateOne(
+          { id: message.guildId },
+          { $set: { "counting.mistakeThreadId": mistakeThreadId } }
+        );
       } catch (err) {
         console.error("Could not create mistakes thread:", err);
         thread = null;
@@ -227,7 +248,7 @@ module.exports = async (client = Client.prototype) => {
 
     const notice = `❌ <@${message.author.id}> posted **${got}**, but the next number should be **${expected}**.`;
     let sentInThread = false;
-    if (thread && thread.isThread()) {
+    if (thread?.isThread()) {
       try {
         await thread.send(notice);
         sentInThread = true;
@@ -242,7 +263,9 @@ module.exports = async (client = Client.prototype) => {
           `❌ In <#${message.channelId}>, you sent **${got}**, but the next number should be **${expected}**.`
         );
       } catch (err) {
-        console.warn(`Failed to DM user ${message.author.tag} for counting mistake`);
+        console.warn(
+          `Failed to DM user ${message.author.tag} for counting mistake`
+        );
       }
     }
 

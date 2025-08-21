@@ -61,46 +61,6 @@ async function registerSlashCommands() {
 }
 client.registerSlashCommands = registerSlashCommands;
 
-const { getTodayEvent } = require("./functions/specialDay");
-const { set, get } = require("./functions/db");
-
-async function updateServerIcon(client) {
-  const guild = await client.guilds.fetch("1011004713908576367");
-  const event = getTodayEvent() || {
-    file: "default.png",
-    name: "Nothing",
-  };
-
-  if (!event || get("ddecord-event") === event.name) return;
-  set("ddecord-event", event.name);
-
-  const filePath = path.join(
-    __dirname,
-    "images/specialServerIcons",
-    event.file
-  );
-  if (!fs.existsSync(filePath)) {
-    console.warn("⚠️ Missing file:", event);
-    return;
-  }
-
-  try {
-    await guild.setIcon(fs.readFileSync(filePath));
-    console.log(`🔄 Server icon set to ${event.file}`);
-
-    if (event.file !== "default.png") {
-      const eventChannel = await guild.channels.fetch("1112121025249955910");
-      if (eventChannel && eventChannel.isTextBased()) {
-        await eventChannel.send(
-          `:star: **New event!** it's... ${event.name}! :star:`
-        );
-      }
-    }
-  } catch (err) {
-    console.error("❌ Failed to update icon or send message:", err);
-  }
-}
-
 client.once(Events.ClientReady, async () => {
   console.log("✅ Client ready");
 
@@ -113,9 +73,6 @@ client.once(Events.ClientReady, async () => {
   }
 
   await registerSlashCommands();
-
-  updateServerIcon(client);
-  setInterval(() => updateServerIcon(client), 60 * 60 * 1000);
 });
 
 client
@@ -124,6 +81,12 @@ client
     loadCommands();
   })
   .catch(console.error);
+
+const { connect } = require("mongoose");
+
+connect(process.env.mongo_uri).then(() =>
+  console.log("✅ Connected to the database")
+);
 
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);
@@ -142,6 +105,7 @@ const limiter = rateLimit({
 
 app.set("trust proxy", 1);
 
+app.use(express.json());
 app.use(limiter);
 app.use((_req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
@@ -179,6 +143,74 @@ app.get("/commands", (_req, res) => {
   });
 
   res.json(commands);
+});
+
+app.post("/auth/token", async (req, res) => {
+  const { code, redirect_uri } = req.body;
+
+  if (!code) return res.status(400).json({ error: "Missing code" });
+
+  const params = new URLSearchParams({
+    client_id: process.env.client_id,
+    client_secret: process.env.client_secret,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri,
+  });
+
+  try {
+    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+
+    if (!tokenRes.ok) {
+      const text = await tokenRes.text();
+      return res
+        .status(tokenRes.status)
+        .json({ error: "Token exchange failed", details: text });
+    }
+
+    const tokenData = await tokenRes.json();
+    res.json({ access_token: tokenData.access_token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/auth/user", async (req, res) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res.status(401).json({ error: "Missing Authorization header" });
+  }
+
+  try {
+    const response = await fetch("https://discord.com/api/v10/users/@me", {
+      headers: {
+        Authorization: token, 
+      },
+    });
+
+    const bodyText = await response.text();
+
+    if (!response.ok) {
+      return res
+        .status(response.status)
+        .json({
+          error: "Failed to fetch user data from Discord",
+          message: bodyText,
+        });
+    }
+
+    const userData = JSON.parse(bodyText);
+    res.json(userData);
+  } catch (error) {
+    console.error("Error fetching Discord user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 app.listen(port, () => {

@@ -59,14 +59,14 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   } else {
     return interaction.reply({
       content: '❌ You must specify either "image" or "user"',
-      ephemeral: true,
+      flags: "Ephemeral",
     });
   }
 
   if (typeof effects[effect] !== "function") {
     return interaction.reply({
       content: "❌ Unknown effect option",
-      ephemeral: true,
+      flags: "Ephemeral",
     });
   }
 
@@ -119,7 +119,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
 
     if (gifResult === "only_gif") {
       return await interaction.editReply({
-        content: "❌ Only GIF files are supported for this effect",
+        content: "❌ Only GIF files are supported for this effect"
       });
     }
 
@@ -129,8 +129,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
 
     return interaction.editReply({
-      files: [file],
-      content: `Effect: \`${effect}\``,
+      files: [file]
     });
   } catch (error) {
     console.error(error);
@@ -138,7 +137,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
       interaction.deferred || interaction.replied ? "followUp" : "reply";
     return interaction[method]({
       content: "❌ There was an error while processing the GIF",
-      ephemeral: true,
+      flags: "Ephemeral",
     });
   }
 }

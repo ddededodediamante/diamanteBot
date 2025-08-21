@@ -337,6 +337,41 @@ async function rotateCounterclockwise(buffer, contentType) {
   return encoder.out.getData();
 }
 
+async function shuffle(buffer, contentType) {
+  if (String(contentType).split("/").at(-1) !== "gif") return "only_gif";
+
+  const frames = await loadFrames(buffer, true);
+  for (let i = frames.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [frames[i], frames[j]] = [frames[j], frames[i]];
+  }
+
+  const width = Math.max(1, frames[0].frameInfo.width);
+  const height = Math.max(1, frames[0].frameInfo.height);
+
+  const framesLength = frames.length;
+
+  const encoder = new GIFEncoder(width, height);
+  encoder.setRepeat(0);
+  encoder.setQuality(50);
+  encoder.setTransparent(0x00000000);
+  encoder.setDelay(0);
+  encoder.start();
+
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+
+  for (let i = 0; i < framesLength; i++) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.drawImage(await frames[i].getImage(), 0, 0, width, height);
+    encoder.setDelay((frames[i].frameInfo.delay ?? 5) * 10);
+    encoder.addFrame(ctx);
+  }
+
+  encoder.finish();
+  return encoder.out.getData();
+}
+
 module.exports = {
   rainbow,
   boykisser,
@@ -345,4 +380,5 @@ module.exports = {
   violentSquish,
   rotate,
   rotateCounterclockwise,
+  shuffle
 };

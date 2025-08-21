@@ -7,8 +7,7 @@ const {
   ChannelType,
   PermissionsBitField,
 } = require("discord.js");
-
-const { get, set } = require("../functions/db");
+const Server = require("../models/serverSchema.js");
 
 const data = new SlashCommandBuilder()
   .setName("welcome")
@@ -64,20 +63,20 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   )
     return interaction.reply({
       content: "❌ You need the `Manage Server` permission to do this",
-      ephemeral: true,
+      flags: "Ephemeral",
     });
 
-  const configKey = `welcome.${guild.id}`;
-  const config = get(configKey) || {
-    messages: ["{user} just joined, say hi!"],
-  };
+  let serverConfig = await Server.findOne({ id: guild.id });
+  if (!serverConfig) {
+    serverConfig = new Server({ id: guild.id });
+  }
 
   switch (subcommand) {
     case "channel": {
       const channel = interaction.options.getChannel("target");
 
-      config.channel = channel.id;
-      set(configKey, config);
+      serverConfig.welcome.channel = channel.id;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Welcome Channel Set")
@@ -94,7 +93,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       )
         return interaction.reply({
           content: "❌ You need the `Manage Roles` permission to do this.",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
       const member = await guild.members.fetch(interaction.user.id);
@@ -104,7 +103,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         return interaction.reply({
           content:
             "❌ I can't set a role that is higher or equal than my highest role",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
       if (
@@ -114,11 +113,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         return interaction.reply({
           content:
             "❌ You can't set a role that is higher or equal to your highest role",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      config.role = role.id;
-      set(configKey, config);
+      serverConfig.welcome.role = role.id;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Auto Role Set")
@@ -135,11 +134,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       if (!messages.length)
         return interaction.reply({
           content: "❌ You must provide at least one message",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      config.messages = messages;
-      set(configKey, config);
+      serverConfig.welcome.messages = messages;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Welcome Messages Set")
@@ -147,14 +146,16 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       break;
     }
     case "disable": {
-      if (!config || !config.channel)
+      if (!serverConfig.welcome.channel)
         return interaction.reply({
           content: "❌ Welcome messages were already disabled",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      delete config.channel;
-      set(configKey, config);
+      serverConfig.welcome.channel = null;
+      serverConfig.welcome.role = null;
+      serverConfig.welcome.messages = ["{user} just joined, say hi!"];
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Welcome Disabled")
@@ -164,7 +165,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     default:
       return interaction.reply({
         content: "❌ Unknown subcommand",
-        ephemeral: true,
+        flags: "Ephemeral",
       });
   }
 

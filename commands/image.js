@@ -86,19 +86,13 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     );
 
     const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });
-    return interaction.editReply({ files: [file], content: `Effect: \`${effect}\`` });
+    return interaction.editReply({ files: [file] });
   } catch (error) {
     console.error(error);
-
-    if (interaction.deferred || interaction.replied) {
-      return interaction.followUp({
-        content: "❌ Error processing the image",
-        flags: "Ephemeral",
-      });
-    }
-
-    return interaction.reply({
-      content: "❌ Error processing the image",
+    const method =
+      interaction.deferred || interaction.replied ? "followUp" : "reply";
+    return interaction[method]({
+      content: "❌ There was an error while processing the image",
       flags: "Ephemeral",
     });
   }

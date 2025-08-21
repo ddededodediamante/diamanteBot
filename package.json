@@ -10,6 +10,8 @@
     "express": "^5.1.0",
     "express-rate-limit": "^7.5.0",
     "gif-frames": "^1.0.1",
-    "gifencoder": "^2.0.1"
+    "gifencoder": "^2.0.1",
+    "mongoose": "^8.16.4",
+    "twemoji": "^14.0.2"
   }
 }

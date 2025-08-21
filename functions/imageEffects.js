@@ -175,7 +175,7 @@ async function mosaicInverted(buffer) {
 
   ctx.filter = "invert(1)";
   ctx.drawImage(image, 0, halfHeight, halfWidth, halfHeight);
-  
+
   return canvas.toBuffer("image/png");
 }
 
@@ -200,14 +200,16 @@ async function emboss(buffer) {
   const data = imgData.data;
   const w = image.width;
 
-  const kernel = [ -2, -1, 0, -1, 1, 1, 0, 1, 2 ];
+  const kernel = [-2, -1, 0, -1, 1, 1, 0, 1, 2];
 
   const output = ctx.createImageData(w, image.height);
 
   for (let y = 1; y < image.height - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       let i = (y * w + x) * 4;
-      let r = 0, g = 0, b = 0;
+      let r = 0,
+        g = 0,
+        b = 0;
       let k = 0;
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
@@ -219,9 +221,9 @@ async function emboss(buffer) {
         }
       }
       output.data[i] = r + 128;
-      output.data[i+1] = g + 128;
-      output.data[i+2] = b + 128;
-      output.data[i+3] = data[i+3];
+      output.data[i + 1] = g + 128;
+      output.data[i + 2] = b + 128;
+      output.data[i + 3] = data[i + 3];
     }
   }
   ctx.putImageData(output, 0, 0);
@@ -332,13 +334,16 @@ async function sharpen(buffer) {
   const data = imageData.data;
   const w = image.width;
 
-  const kernel = [ 0, -1, 0, -1, 5, -1, 0, -1, 0 ];
+  const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
   const output = ctx.createImageData(w, image.height);
 
   for (let y = 1; y < image.height - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       let i = (y * w + x) * 4;
-      let r = 0, g = 0, b = 0, k = 0;
+      let r = 0,
+        g = 0,
+        b = 0,
+        k = 0;
       for (let ky = -1; ky <= 1; ky++) {
         for (let kx = -1; kx <= 1; kx++) {
           const idx = ((y + ky) * w + (x + kx)) * 4;
@@ -424,18 +429,19 @@ async function swirl(buffer) {
     for (let x = 0; x < width; x++) {
       const dx = x - cx;
       const dy = y - cy;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      const angle = Math.atan2(dy, dx) + (radius - dist) / radius * Math.PI * strength;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angle =
+        Math.atan2(dy, dx) + ((radius - dist) / radius) * Math.PI * strength;
       const sx = Math.round(cx + dist * Math.cos(angle));
       const sy = Math.round(cy + dist * Math.sin(angle));
-      
+
       if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
         const di = (y * width + x) * 4;
         const si = (sy * width + sx) * 4;
-        dst.data[di]   = src.data[si];
-        dst.data[di+1] = src.data[si+1];
-        dst.data[di+2] = src.data[si+2];
-        dst.data[di+3] = src.data[si+3];
+        dst.data[di] = src.data[si];
+        dst.data[di + 1] = src.data[si + 1];
+        dst.data[di + 2] = src.data[si + 2];
+        dst.data[di + 3] = src.data[si + 3];
       }
     }
   }
@@ -484,9 +490,10 @@ async function redAndBlueSwap(buffer) {
   const imgData = ctx.getImageData(0, 0, image.width, image.height);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], b = data[i+2];
+    const r = data[i],
+      b = data[i + 2];
     data[i] = b;
-    data[i+2] = r;
+    data[i + 2] = r;
   }
   ctx.putImageData(imgData, 0, 0);
   return canvas.toBuffer("image/png");
@@ -498,6 +505,25 @@ async function darken(buffer) {
   const ctx = canvas.getContext("2d");
   ctx.filter = "brightness(0.6)";
   ctx.drawImage(image, 0, 0);
+  return canvas.toBuffer("image/png");
+}
+
+async function cat(buffer) {
+  const image = await loadImage(buffer);
+  const catMask = await loadImage(toValidPath("../images/cat.png"));
+  const catFace = await loadImage(toValidPath("../images/cat-face.png"));
+
+  const canvas = createCanvas(512, 512);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(image, 21, 25, 470, 473);
+  ctx.globalCompositeOperation = "destination-in";
+
+  ctx.drawImage(catMask, 0, 0, 512, 512);
+  ctx.globalCompositeOperation = "source-over";
+
+  ctx.drawImage(catFace, 0, 0, 512, 512);
+
   return canvas.toBuffer("image/png");
 }
 
@@ -529,5 +555,6 @@ module.exports = {
   rainbowOverlay,
   desaturate,
   redAndBlueSwap,
-  darken
+  darken,
+  cat,
 };

@@ -7,8 +7,7 @@ const {
   ChannelType,
   PermissionsBitField,
 } = require("discord.js");
-
-const { get, set } = require("../functions/db");
+const Server = require("../models/serverSchema.js");
 
 const data = new SlashCommandBuilder()
   .setName("farewell")
@@ -53,20 +52,20 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   )
     return interaction.reply({
       content: "❌ You need the `Manage Server` permission to do this",
-      ephemeral: true,
+      flags: "Ephemeral",
     });
 
-  const configKey = `farewell.${guild.id}`;
-  const config = get(configKey) || {
-    messages: ["{user} has just left."],
-  };
+  let serverConfig = await Server.findOne({ id: guild.id });
+  if (!serverConfig) {
+    serverConfig = new Server({ id: guild.id });
+  }
 
   switch (subcommand) {
     case "channel": {
       const channel = interaction.options.getChannel("target");
 
-      config.channel = channel.id;
-      set(configKey, config);
+      serverConfig.farewell.channel = channel.id;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Farewell Channel Set")
@@ -83,11 +82,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       if (!messages.length)
         return interaction.reply({
           content: "❌ You must provide at least one message",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      config.messages = messages;
-      set(configKey, config);
+      serverConfig.farewell.messages = messages;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Farewell Messages Set")
@@ -95,14 +94,15 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       break;
     }
     case "disable": {
-      if (!config || !config.channel)
+      if (!serverConfig.farewell.channel)
         return interaction.reply({
           content: "❌ Farewell messages were already disabled",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      delete config.channel;
-      set(configKey, config);
+      serverConfig.farewell.channel = null;
+      serverConfig.farewell.messages = ["{user} has just left."];
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Farewell Disabled")
@@ -112,7 +112,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     default:
       return interaction.reply({
         content: "❌ Unknown subcommand",
-        ephemeral: true,
+        flags: "Ephemeral",
       });
   }
 

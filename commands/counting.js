@@ -7,8 +7,7 @@ const {
   ChannelType,
   PermissionsBitField,
 } = require("discord.js");
-
-const { get, set } = require("../functions/db");
+const Server = require("../models/serverSchema.js");
 
 const data = new SlashCommandBuilder()
   .setName("counting")
@@ -34,7 +33,7 @@ const data = new SlashCommandBuilder()
       .addBooleanOption((opt) =>
         opt
           .setName("active")
-          .setDescription("Whenever resetting is active or not")
+          .setDescription("Whether resetting is active or not")
           .setRequired(true)
       )
   )
@@ -42,7 +41,7 @@ const data = new SlashCommandBuilder()
     sub.setName("reset").setDescription("Reset the count manually")
   )
   .addSubcommand((sub) =>
-    sub.setName("disable").setDescription("Disable farewell messages")
+    sub.setName("disable").setDescription("Disable counting")
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
@@ -55,21 +54,23 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   )
     return interaction.reply({
       content: "❌ You need the `Manage Server` permission to do this",
-      ephemeral: true,
+      flags: "Ephemeral",
     });
 
-  const configKey = `counting.${guild.id}`;
-  const config = get(configKey) || { resetOnWrong: false, count: 0 };
+  let serverConfig = await Server.findOne({ id: guild.id });
+  if (!serverConfig) {
+    serverConfig = new Server({ id: guild.id });
+  }
 
   switch (subcommand) {
     case "channel": {
       const channel = interaction.options.getChannel("target");
-
-      config.channel = channel.id;
-      set(configKey, config);
+      serverConfig.counting.channel = channel.id;
+      serverConfig.counting.count = 0;
+      await serverConfig.save();
 
       await channel.send(
-        "Counting was setup on this channel. The next number is **1**!"
+        "Counting was setup in this channel. The next number is **1**!"
       );
 
       embed
@@ -79,9 +80,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     }
     case "reset-on-wrong": {
       const active = interaction.options.getBoolean("active");
-
-      config.resetOnWrong = active;
-      set(configKey, config);
+      serverConfig.counting.resetOnWrong = active;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Configuration Changed")
@@ -89,24 +89,24 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       break;
     }
     case "reset": {
-      config.count = 0;
-      delete config.lastUser;
-      set(configKey, config);
+      serverConfig.counting.count = 0;
+      serverConfig.counting.lastUser = null;
+      await serverConfig.save();
 
       embed
-        .setTitle("✅ Count Reseted")
-        .setDescription(`The count has been reseted. The next number is **1**.`);
+        .setTitle("✅ Count Reset")
+        .setDescription(`The count has been reset. The next number is **1**.`);
       break;
     }
     case "disable": {
-      if (!config || !config.channel)
+      if (!serverConfig.counting.channel)
         return interaction.reply({
           content: "❌ Counting channel was already disabled",
-          ephemeral: true,
+          flags: "Ephemeral",
         });
 
-      delete config.channel;
-      set(configKey, config);
+      serverConfig.counting.channel = null;
+      await serverConfig.save();
 
       embed
         .setTitle("✅ Counting Disabled")
@@ -116,14 +116,12 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     default:
       return interaction.reply({
         content: "❌ Unknown subcommand",
-        ephemeral: true,
+        flags: "Ephemeral",
       });
   }
 
-  embed.setFooter({ text: `Guild ID: ${guild.id}` });
-  embed.setColor("Green");
-
-  return await interaction.reply({ embeds: [embed] });
+  embed.setFooter({ text: `Guild ID: ${guild.id}` }).setColor("Green");
+  return interaction.reply({ embeds: [embed] });
 };
 
 module.exports = { data, run };

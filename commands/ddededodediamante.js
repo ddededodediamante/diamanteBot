@@ -7,7 +7,7 @@ const {
 
 const data = new SlashCommandBuilder()
   .setName("ddededodediamante")
-  .setDescription('Check how "ddededodediamante" a user is')
+  .setDescription('Fun | Check how "ddededodediamante" a user is')
   .setContexts(
     InteractionContextType.BotDM,
     InteractionContextType.Guild,

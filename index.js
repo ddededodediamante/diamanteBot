@@ -1,5 +1,5 @@
 console.log("✅ index.js started");
-
+const isTest = process.argv.includes("--test");
 require("dotenv").config();
 
 const {
@@ -50,16 +50,25 @@ client.loadCommands = loadCommands;
 
 async function registerSlashCommands() {
   try {
-    const rest = new REST({ version: "10" }).setToken(process.env.token);
-    await rest.put(Routes.applicationCommands(process.env.client_id), {
+    const rest = new REST({ version: "10" }).setToken(
+      isTest ? process.env.test_token : process.env.token
+    );
+    await rest.put(Routes.applicationCommands(client.user.id), {
       body: client.commands.map((c) => c.data.toJSON()),
     });
-    console.log("✅ Commands registered");
+    console.log(`✅ Registered ${client.commands.size} commands`);
   } catch (err) {
     console.error("❌ Command registration failed:", err);
   }
 }
 client.registerSlashCommands = registerSlashCommands;
+
+client.getEmoji = (emojiName) => {
+  let appEmojis = client.application.emojis;
+  return appEmojis.cache.some((emoji) => emoji.name === emojiName)
+    ? appEmojis.cache.find((emoji) => emoji.name === emojiName)
+    : "❓";
+};
 
 client.once(Events.ClientReady, async () => {
   console.log("✅ Client ready");
@@ -76,7 +85,7 @@ client.once(Events.ClientReady, async () => {
 });
 
 client
-  .login(process.env.token)
+  .login(isTest ? process.env.test_token : process.env.token)
   .then(() => {
     loadCommands();
   })
@@ -143,74 +152,6 @@ app.get("/commands", (_req, res) => {
   });
 
   res.json(commands);
-});
-
-app.post("/auth/token", async (req, res) => {
-  const { code, redirect_uri } = req.body;
-
-  if (!code) return res.status(400).json({ error: "Missing code" });
-
-  const params = new URLSearchParams({
-    client_id: process.env.client_id,
-    client_secret: process.env.client_secret,
-    grant_type: "authorization_code",
-    code,
-    redirect_uri,
-  });
-
-  try {
-    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
-
-    if (!tokenRes.ok) {
-      const text = await tokenRes.text();
-      return res
-        .status(tokenRes.status)
-        .json({ error: "Token exchange failed", details: text });
-    }
-
-    const tokenData = await tokenRes.json();
-    res.json({ access_token: tokenData.access_token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-app.get("/auth/user", async (req, res) => {
-  const token = req.headers.authorization;
-
-  if (!token) {
-    return res.status(401).json({ error: "Missing Authorization header" });
-  }
-
-  try {
-    const response = await fetch("https://discord.com/api/v10/users/@me", {
-      headers: {
-        Authorization: token, 
-      },
-    });
-
-    const bodyText = await response.text();
-
-    if (!response.ok) {
-      return res
-        .status(response.status)
-        .json({
-          error: "Failed to fetch user data from Discord",
-          message: bodyText,
-        });
-    }
-
-    const userData = JSON.parse(bodyText);
-    res.json(userData);
-  } catch (error) {
-    console.error("Error fetching Discord user:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
 });
 
 app.listen(port, () => {

@@ -122,7 +122,7 @@ module.exports = async (client = Client.prototype) => {
           ].replace("{user}", member.toString());
 
           await channel.send({
-            content: `<:join:1367235272533868687> ${message}`.slice(0, 2000),
+            content: `${client.getEmoji("join")} ${message}`.slice(0, 2000),
             allowedMentions: { users: [member.id] },
           });
         }
@@ -161,7 +161,7 @@ module.exports = async (client = Client.prototype) => {
         ].replace("{user}", member.toString());
 
         await channel.send({
-          content: `<:leave:1367235263104815145> ${message}`.slice(0, 2000),
+          content: `${client.getEmoji("leave")} ${message}`.slice(0, 2000),
           allowedMentions: { users: [member.id] },
         });
       } catch (error) {
@@ -181,12 +181,16 @@ module.exports = async (client = Client.prototype) => {
 
     if (message.channelId !== channelId) return;
 
-    const got = parseInt(message.content.trim(), 10);
-    if (isNaN(got)) return;
+    const got = Number(message.content.trim().split(" ")[0]);
+    if (isNaN(got)) {
+      if (message.deletable) await message.delete();
+      return;
+    }
 
     if (message.author.id === lastUser) {
-      if (message.deletable) return message.delete();
-      return message.react("❌");
+      if (message.deletable) await message.delete();
+      else await message.react("❌").catch(() => {});
+      return;
     }
 
     const expected = count + 1;
@@ -209,10 +213,16 @@ module.exports = async (client = Client.prototype) => {
         { id: message.guildId },
         { $set: { "counting.count": 0, "counting.lastUser": null } }
       );
+      if (
+        message.channel
+          .permissionsFor(message.guild.members.me)
+          .has("SendMessages")
+      )
+        await message.reply(
+          `❌ Wrong number! Count has been reset. The next number is **1**.`
+        );
       if (message.deletable) message.delete();
-      return message.reply(
-        `❌ Wrong number! Count has been reset. The next number is **1**.`
-      );
+      return;
     }
 
     let thread;

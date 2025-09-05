@@ -102,7 +102,7 @@ const effects = {
       love: "hate",
       friend: "enemy",
       friends: "enemies",
-      good: "evil",
+      good: "bad",
       kind: "cruel",
       happy: "miserable",
       happiness: "sadness",

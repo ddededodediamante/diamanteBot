@@ -49,8 +49,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     {
       name: "📊 Statistics",
       value:
-        `**Servers:** ${client.guilds.cache.size.toLocaleString()}\n` +
-        `**Users:** ${client.users.cache.size.toLocaleString()}\n` +
+        `**Servers:** ${app.approximateGuildCount.toLocaleString()}\n` +
+        `**Installed users:** ${app.approximateUserInstallCount.toLocaleString()}\n` +
         `**Bot Uptime:** ${uptimeString}\n` +
         `**Ping:** ${
           client.ws.ping === -1 ? "Loading..." : client.ws.ping + "ms"
@@ -60,8 +60,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     {
       name: "💻 Software",
       value:
-        `<:discordjs:1365170283568169002> **Discord.js:** v${version}\n` +
-        `<:nodejs:1365170327063363645> **Node.js:** ${process.version}`,
+        `${client.getEmoji("discordjs")} **Discord.js:** v${version}\n` +
+        `${client.getEmoji("nodejs")} **Node.js:** ${process.version}`,
       inline: false,
     },
     {

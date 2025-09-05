@@ -98,7 +98,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
           value: `Total: ${total}\n> Humans: ${humans}\n> Bots: ${bots}`,
         },
         {
-          name: "<:boost:1394133035728764988> Boosts",
+          name: `${interaction.client.getEmoji("boost")} Boosts`,
           value: `Amount: ${guild.premiumSubscriptionCount || 0}\nTier ${
             guild.premiumTier
           }`,

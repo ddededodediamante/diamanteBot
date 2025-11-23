@@ -1,4 +1,3 @@
-console.log("✅ index.js started");
 const isTest = process.argv.includes("--test");
 require("dotenv").config();
 
@@ -65,9 +64,7 @@ client.registerSlashCommands = registerSlashCommands;
 
 client.getEmoji = (emojiName) => {
   let appEmojis = client.application.emojis;
-  return appEmojis.cache.some((emoji) => emoji.name === emojiName)
-    ? appEmojis.cache.find((emoji) => emoji.name === emojiName)
-    : "❓";
+  return appEmojis.cache.find((emoji) => emoji.name === emojiName) || "❓";
 };
 
 client.once(Events.ClientReady, async () => {
@@ -82,6 +79,8 @@ client.once(Events.ClientReady, async () => {
   }
 
   await registerSlashCommands();
+
+  await client.application.emojis.fetch();
 });
 
 client
@@ -103,57 +102,59 @@ process.on("uncaughtException", console.error);
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 
-const app = express();
-const port = Number(process.env?.port ?? 3000);
+if (!isTest) {
+  const app = express();
+  const port = Number(process.env?.port ?? 3000);
 
-const limiter = rateLimit({
-  windowMs: 30 * 1000,
-  max: 60,
-  message: "Too many requests from this IP, please try again later.",
-});
-
-app.set("trust proxy", 1);
-
-app.use(express.json());
-app.use(limiter);
-app.use((_req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  next();
-});
-
-app.get("/", (_req, res) => {
-  res.send("RandoBot API");
-});
-
-app.get("/bot", (_req, res) => {
-  const guilds = client.guilds.cache.size;
-  const channels = client.channels.cache.size;
-  const users = client.users.cache.size;
-
-  res.json({
-    guilds,
-    channels,
-    users,
-    uptime: client.uptime,
-    ping: client.ws.ping,
-  });
-});
-
-app.get("/commands", (_req, res) => {
-  const commands = Array.from(client.commands.values()).map((command) => {
-    const { name, description, type, options } = command.data.toJSON();
-
-    return {
-      name,
-      description,
-      type,
-      options,
-    };
+  const limiter = rateLimit({
+    windowMs: 15 * 1000,
+    max: 30,
+    message: "Too many requests from this IP, please try again later.",
   });
 
-  res.json(commands);
-});
+  app.set("trust proxy", 1);
 
-app.listen(port, () => {
-  console.log(`✅ Listening on port ${port}`);
-});
+  app.use(express.json());
+  app.use(limiter);
+  app.use((_req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    next();
+  });
+
+  app.get("/", (_req, res) => {
+    res.send("RandoBot API");
+  });
+
+  app.get("/bot", (_req, res) => {
+    const guilds = client.guilds.cache.size;
+    const channels = client.channels.cache.size;
+    const users = client.users.cache.size;
+
+    res.json({
+      guilds,
+      channels,
+      users,
+      uptime: client.uptime,
+      ping: client.ws.ping,
+    });
+  });
+
+  app.get("/commands", (_req, res) => {
+    const commands = Array.from(client.commands.values()).map((command) => {
+      const { name, description, type, options } = command.data.toJSON();
+
+      return {
+        name,
+        description,
+        type,
+        options,
+      };
+    });
+
+    res.json(commands);
+  });
+
+  app.listen(port, () => {
+    console.log(`✅ Listening on port ${port}`);
+  });
+}

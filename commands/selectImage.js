@@ -31,7 +31,7 @@ const run = async (
 
   if (!img) {
     return await interaction.reply({
-      content: "❌ No image found in that message.",
+      content: "❌ No image found in that message",
       flags: "Ephemeral",
     });
   }

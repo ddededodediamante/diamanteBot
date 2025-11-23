@@ -9,7 +9,7 @@ const {
 
 const data = new SlashCommandBuilder()
   .setName("ban")
-  .setDescription("Moderation | Bans a member permanently or temporarily")
+  .setDescription("Moderation | Bans a member permanently")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
   .addUserOption((opt) =>

@@ -100,15 +100,15 @@ async function boykisser(buffer, contentType) {
     ctx.clearRect(0, 0, spriteWidth, spriteHeight);
 
     ctx.drawImage(
-      spriteImage, // Image
-      (i % spriteCount) * spriteWidth, // Source X (cycling sprite)
-      0, // Source Y
-      spriteWidth, // Source Width
-      spriteHeight, // Source Height
-      0, // Dest X
-      0, // Dest Y
-      spriteWidth, // Dest Width
-      spriteHeight // Dest Height
+      spriteImage,
+      (i % spriteCount) * spriteWidth,
+      0, 
+      spriteWidth, 
+      spriteHeight,
+      0, 
+      0, 
+      spriteWidth,
+      spriteHeight 
     );
 
     ctx.drawImage(frame, 343, 12, 110, 69);

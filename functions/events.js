@@ -170,11 +170,48 @@ module.exports = async (client = Client.prototype) => {
     }
   );
 
+  const countingMistakes = new Set();
+
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guildId) return;
 
     const config = await Servers.findOne({ id: message.guildId });
     if (!config?.counting) return;
+
+    async function getMistakesThread() {
+      let thread;
+      try {
+        if (mistakeThreadId) {
+          thread = await client.channels.fetch(mistakeThreadId);
+          if (thread?.isThread() && thread.archived) {
+            await thread.setArchived(false, "Reopening mistakes thread");
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching mistakes thread:", err);
+        thread = null;
+      }
+
+      if (!thread?.isThread()) {
+        try {
+          thread = await message.channel.threads.create({
+            name: "Counting Mistakes",
+            autoArchiveDuration: 60,
+            reason: "Initializing mistakes thread",
+          });
+          mistakeThreadId = thread.id;
+          await Servers.updateOne(
+            { id: message.guildId },
+            { $set: { "counting.mistakeThreadId": mistakeThreadId } }
+          );
+        } catch (err) {
+          console.error("Could not create mistakes thread:", err);
+          thread = null;
+        }
+      }
+
+      return thread;
+    }
 
     const { channel: channelId, resetOnWrong = false } = config.counting;
     let { count = 0, lastUser, mistakeThreadId } = config.counting;
@@ -183,17 +220,34 @@ module.exports = async (client = Client.prototype) => {
 
     const got = Number(message.content.trim().split(" ")[0]);
     if (isNaN(got)) {
-      if (message.deletable) await message.delete();
-      return;
-    }
-
-    if (message.author.id === lastUser) {
-      if (message.deletable) await message.delete();
-      else await message.react("❌").catch(() => {});
+      if (message.deletable) {
+        countingMistakes.add(message.id);
+        await message.delete();
+      }
       return;
     }
 
     const expected = count + 1;
+
+    if (message.author.id === lastUser) {
+      const thread = await getMistakesThread();
+      const notice = `🛑 ${message.author} tried to count twice in a row. The next number is **${expected}**.`;
+      let sentInThread = false;
+      if (thread?.isThread()) {
+        try {
+          await thread.send(notice);
+          sentInThread = true;
+        } catch (err) {
+          console.error("Failed to send counting mistake in thread:", err);
+        }
+      }
+
+      if (message.deletable) {
+        countingMistakes.add(message.id);
+        message.delete();
+      } else if (!sentInThread) message.react("🛑").catch(() => {});
+      return;
+    }
 
     if (got === expected) {
       await Servers.updateOne(
@@ -221,41 +275,15 @@ module.exports = async (client = Client.prototype) => {
         await message.reply(
           `❌ Wrong number! Count has been reset. The next number is **1**.`
         );
-      if (message.deletable) message.delete();
+      if (!message.deletable) message.react("🔄").catch(() => {});
+      else {
+        countingMistakes.add(message.id);
+        message.delete();
+      }
       return;
     }
 
-    let thread;
-    try {
-      if (mistakeThreadId) {
-        thread = await client.channels.fetch(mistakeThreadId);
-        if (thread?.isThread() && thread.archived) {
-          await thread.setArchived(false, "Reopening mistakes thread");
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching mistakes thread:", err);
-      thread = null;
-    }
-
-    if (!thread?.isThread()) {
-      try {
-        thread = await message.channel.threads.create({
-          name: "Counting Mistakes",
-          autoArchiveDuration: 60,
-          reason: "Initializing mistakes thread",
-        });
-        mistakeThreadId = thread.id;
-        await Servers.updateOne(
-          { id: message.guildId },
-          { $set: { "counting.mistakeThreadId": mistakeThreadId } }
-        );
-      } catch (err) {
-        console.error("Could not create mistakes thread:", err);
-        thread = null;
-      }
-    }
-
+    const thread = await getMistakesThread();
     const notice = `❌ <@${message.author.id}> posted **${got}**, but the next number should be **${expected}**.`;
     let sentInThread = false;
     if (thread?.isThread()) {
@@ -280,9 +308,35 @@ module.exports = async (client = Client.prototype) => {
     }
 
     if (message.deletable) {
-      await message.delete();
-    } else {
-      await message.react("❌").catch(() => {});
+      countingMistakes.add(message.id);
+      message.delete();
+    } else message.react("❌").catch(() => {});
+  });
+
+  client.on(Events.MessageDelete, async (message) => {
+    if (message.author.bot || !message.guildId) return;
+    if (countingMistakes.has(message.id)) {
+      countingMistakes.delete(message.id);
+      return;
+    }
+
+    const config = await Servers.findOne({ id: message.guildId });
+    if (!config?.counting) return;
+
+    const { channel: channelId } = config.counting;
+    let { count = 0, lastUser } = config.counting;
+
+    if (message.channelId !== channelId) return;
+
+    const got = Number(message.content.trim().split(" ")[0]);
+
+    if (!isNaN(got) && got === count && message.author.id === lastUser) {
+      try {
+        await message.channel.send({
+          content: `${message.author}: ${count}`,
+          allowedMentions: { parse: [] },
+        });
+      } catch (_) {}
     }
   });
 

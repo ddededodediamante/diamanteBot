@@ -38,10 +38,18 @@ const data = new SlashCommandBuilder()
       )
   )
   .addSubcommand((sub) =>
-    sub.setName("reset").setDescription("Reset the count manually")
+    sub
+      .setName("set")
+      .setDescription("Set the count to a number manually")
+      .addIntegerOption((opt) =>
+        opt
+          .setName("value")
+          .setDescription("What to set the current count to")
+          .setRequired(true)
+      )
   )
   .addSubcommand((sub) =>
-    sub.setName("disable").setDescription("Disable counting")
+    sub.setName("disable").setDescription("Disable welcome messages")
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
@@ -88,14 +96,25 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         .setDescription(`Configuration \`reset on wrong\` set to ${active}`);
       break;
     }
-    case "reset": {
-      serverConfig.counting.count = 0;
+    case "set": {
+      const value = interaction.options.getInteger("value") ?? 0;
+      if (serverConfig.counting.count === value)
+        return interaction.reply({
+          content: `❌ The current count is already **${value}**`,
+          flags: "Ephemeral",
+        });
+
+      serverConfig.counting.count = value;
       serverConfig.counting.lastUser = null;
       await serverConfig.save();
 
       embed
-        .setTitle("✅ Count Reset")
-        .setDescription(`The count has been reset. The next number is **1**.`);
+        .setTitle("✅ Count Set")
+        .setDescription(
+          `The count has been set to **${value}**. The next number is **${
+            value + 1
+          }**.`
+        );
       break;
     }
     case "disable": {

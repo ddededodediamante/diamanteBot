@@ -94,6 +94,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   }
 
   const subcommand = interaction.options.getSubcommand();
+  const rud = interaction.client.getEmoji("rud");
 
   if (subcommand === "apply") {
     const job = interaction.options.getString("job");
@@ -221,8 +222,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
 
       interaction.editReply({ components: [buttonContainer] });
 
-      const rud = interaction.client.getEmoji("rud");
-
       if (attempt.join() === sequence.join()) {
         user.economy.ruds += rudsEarn;
         user.economy.job.experience += expEarn;
@@ -236,26 +235,23 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
           leveledUp = true;
         }
 
-        await user.save();
-
         let message = `✅ Correct! You earned **${rudsEarn}** ${rud} and **${expEarn}** work experience this shift.`;
-
-        if (leveledUp) {
-          message += `\n🎉 You leveled up! You are now level **${user.economy.job.level}**.`;
-        }
+        if (leveledUp) message += `\n🎉 You leveled up! You are now level **${user.economy.job.level}**.`;
 
         await interaction.followUp({
           content: message,
         });
+        await user.save();
       } else {
         user.economy.ruds += Math.floor(rudsEarn / 2);
-        await user.save();
 
         await interaction.followUp({
           content: `❌ ${
             attempt.length === sequence.length ? "Wrong order!" : "Times up!"
           } You only earned **${Math.floor(rudsEarn / 2)}** ${rud} this shift.`,
         });
+        await user.save();
+
       }
     });
   } else if (subcommand === "status") {

@@ -62,7 +62,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   } catch (err) {
     console.error("TTS command failed:", err);
     await interaction.reply({
-      content: "❌ Failed to generate TTS.",
+      content: "❌ Failed to generate TTS",
       ephemeral: true,
     });
   }

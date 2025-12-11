@@ -1,6 +1,6 @@
 const { toValidPath } = require("./path");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
-const GIFEncoder = require("gifencoder");
+const GIFEncoder = require("gif-encoder-2");
 const gifFrames = require("gif-frames");
 
 if (typeof document === "undefined") {
@@ -14,11 +14,11 @@ if (typeof document === "undefined") {
 async function loadFrames(buffer, isGif) {
   return isGif
     ? await gifFrames({
-        url: buffer,
-        frames: "all",
-        outputType: "canvas",
-        cumulative: true,
-      })
+      url: buffer,
+      frames: "all",
+      outputType: "canvas",
+      cumulative: true,
+    })
     : await loadImage(buffer);
 }
 
@@ -33,7 +33,7 @@ async function rainbow(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(isGif ? 0 : 60);
   encoder.start();
@@ -45,23 +45,17 @@ async function rainbow(buffer, contentType) {
   for (let i = 0; i < framesLength; i++) {
     ctx.clearRect(0, 0, width, height);
 
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = "destination-over";
-
+    ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(
       isGif ? await frames[i].getImage() : frames,
-      0,
-      0,
-      width,
-      height
+      0, 0, width, height
     );
 
-    ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 0.2;
-    ctx.fillStyle = `hsl(${(i / (framesLength - 1)) * 360}, 100%, 50%)`;
+    ctx.fillStyle = `hsl(${(i / framesLength) * 360}, 100%, 50%)`;
     ctx.fillRect(0, 0, width, height);
 
-    if (isGif) encoder.setDelay((frames[i]?.frameInfo?.delay ?? 5) * 10);
+    if (isGif) encoder.setDelay((frames[i].frameInfo.delay ?? 5) * 10);
     encoder.addFrame(ctx);
   }
 
@@ -71,8 +65,8 @@ async function rainbow(buffer, contentType) {
 
 async function boykisser(buffer, contentType) {
   const spriteImage = await loadImage(toValidPath("../images/boykisser.png"));
-  const spriteWidth = 465;
-  const spriteHeight = 498;
+  const spriteWidth = 320;
+  const spriteHeight = 342;
   const spriteCount = 22;
 
   const isGif = String(contentType).split("/").at(-1) === "gif";
@@ -82,7 +76,7 @@ async function boykisser(buffer, contentType) {
 
   const encoder = new GIFEncoder(spriteWidth, spriteHeight);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(100);
   encoder.start();
@@ -90,11 +84,11 @@ async function boykisser(buffer, contentType) {
   const canvas = createCanvas(spriteWidth, spriteHeight);
   const ctx = canvas.getContext("2d");
 
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < spriteCount; i++) {
     const frame = isGif
       ? await frames[
-          framesLength > 44 ? (i * 2) % framesLength : i % framesLength
-        ].getImage()
+        framesLength > spriteCount * 2 ? (i * 2) % framesLength : i % framesLength
+      ].getImage()
       : frames;
 
     ctx.clearRect(0, 0, spriteWidth, spriteHeight);
@@ -102,17 +96,121 @@ async function boykisser(buffer, contentType) {
     ctx.drawImage(
       spriteImage,
       (i % spriteCount) * spriteWidth,
-      0, 
-      spriteWidth, 
-      spriteHeight,
-      0, 
-      0, 
+      0,
       spriteWidth,
-      spriteHeight 
+      spriteHeight,
+      0,
+      0,
+      spriteWidth,
+      spriteHeight
     );
 
-    ctx.drawImage(frame, 343, 12, 110, 69);
-    ctx.drawImage(frame, 183, 70, 75, 59);
+    ctx.drawImage(frame, 236, 16, 61, 31);
+    ctx.drawImage(frame, 129, 55, 47, 31);
+
+    encoder.addFrame(ctx);
+  }
+
+  encoder.finish();
+  return encoder.out.getData();
+}
+
+async function thanosReactThisMan(buffer, contentType) {
+  const spriteImage = await loadImage(toValidPath("../images/thanos.png"));
+  const spriteWidth = 498;
+  const spriteHeight = 348;
+  const spriteCount = 37;
+
+  const isGif = String(contentType).split("/").at(-1) === "gif";
+  const frames = await loadFrames(buffer, isGif);
+
+  const framesLength = Array.isArray(frames) ? frames.length : 1;
+
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  encoder.setRepeat(0);
+  encoder.setQuality(10);
+  encoder.setTransparent(0x00000000);
+  encoder.setDelay(50);
+  encoder.start();
+
+  const canvas = createCanvas(spriteWidth, spriteHeight);
+  const ctx = canvas.getContext("2d");
+
+  for (let i = 0; i < spriteCount; i++) {
+    const frame = isGif
+      ? await frames[
+        framesLength > spriteCount * 2 ? (i * 2) % framesLength : i % framesLength
+      ].getImage()
+      : frames;
+
+    ctx.clearRect(0, 0, spriteWidth, spriteHeight);
+
+    ctx.drawImage(
+      spriteImage,
+      (i % spriteCount) * spriteWidth,
+      0,
+      spriteWidth,
+      spriteHeight,
+      0,
+      0,
+      spriteWidth,
+      spriteHeight
+    );
+
+    ctx.drawImage(frame, 211, 26, 77, 61);
+
+    encoder.addFrame(ctx);
+  }
+
+  encoder.finish();
+  return encoder.out.getData();
+}
+
+async function scaryAttack(buffer, contentType) {
+  const spriteImage = await loadImage(toValidPath("../images/scary-attack.png"));
+  const spriteWidth = 240;
+  const spriteHeight = 300;
+  const spriteCount = 64;
+
+  const isGif = String(contentType).split("/").at(-1) === "gif";
+  const frames = await loadFrames(buffer, isGif);
+
+  const framesLength = Array.isArray(frames) ? frames.length : 1;
+
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  encoder.setRepeat(0);
+  encoder.setQuality(10);
+  encoder.setTransparent(0x00000000);
+  encoder.setDelay(4);
+  encoder.start();
+
+  const canvas = createCanvas(spriteWidth, spriteHeight);
+  const ctx = canvas.getContext("2d");
+
+  const positions = [[195,-72],[195,-72],[191,-65],[189,-63],[188,-61],[187,-58],[185,-54],[182,-49],[180,-47],[178,-42],[174,-36],[173,-34],[172,-30],[170,-28],[167,-23],[165,-19],[162,-12],[159,-7],[157,-4],[156,0],[155,1],[152,25],[150,70],[149,100],[146,119],[146,120],[144,120],[143,120],[142,120],[140,120],[137,120],[135,120],[134,121],[134,121],[132,122],[131,122],[129,122],[127,122],[127,122],[126,122],[124,122],[122,122],[119,123],[118,124],[112,126],[108,127],[104,128],[96,132],[86,134],[81,137],[75,140],[73,141],[71,142],[70,142],[66,144],[64,145],[64,146],[63,137],[69,116],[67,120],[64,124],[57,131],[52,136],[49,140],[49,140]];
+
+  for (let i = 0; i < spriteCount; i++) {
+    const frame = isGif
+      ? await frames[
+        framesLength > spriteCount * 2 ? (i * 2) % framesLength : i % framesLength
+      ].getImage()
+      : frames;
+
+    ctx.clearRect(0, 0, spriteWidth, spriteHeight);
+
+    ctx.drawImage(
+      spriteImage,
+      (i % spriteCount) * spriteWidth,
+      0,
+      spriteWidth,
+      spriteHeight,
+      0,
+      0,
+      spriteWidth,
+      spriteHeight
+    );
+
+    ctx.drawImage(frame, ...positions[i], 87, 96);
 
     encoder.addFrame(ctx);
   }
@@ -133,7 +231,7 @@ async function compress(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(50);
+  encoder.setQuality(255);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(0);
   encoder.start();
@@ -163,7 +261,7 @@ async function waveDistortAnimated(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(isGif ? 0 : 40);
   encoder.start();
@@ -225,7 +323,7 @@ async function violentSquish(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(isGif ? 0 : 30);
   encoder.start();
@@ -267,7 +365,7 @@ async function rotate(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setDelay(isGif ? 0 : 50);
   encoder.start();
 
@@ -307,7 +405,7 @@ async function rotateCounterclockwise(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(17);
+  encoder.setQuality(10);
   encoder.setDelay(isGif ? 0 : 50);
   encoder.start();
 
@@ -353,7 +451,7 @@ async function shuffle(buffer, contentType) {
 
   const encoder = new GIFEncoder(width, height);
   encoder.setRepeat(0);
-  encoder.setQuality(50);
+  encoder.setQuality(10);
   encoder.setTransparent(0x00000000);
   encoder.setDelay(0);
   encoder.start();
@@ -375,10 +473,12 @@ async function shuffle(buffer, contentType) {
 module.exports = {
   rainbow,
   boykisser,
+  thanosReactThisMan,
   compress,
   waveDistortAnimated,
   violentSquish,
   rotate,
   rotateCounterclockwise,
-  shuffle
+  shuffle,
+  scaryAttack
 };

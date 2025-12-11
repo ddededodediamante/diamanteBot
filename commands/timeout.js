@@ -7,20 +7,23 @@ const {
   PermissionsBitField,
 } = require("discord.js");
 
-const ms = require("ms"); 
+const ms = require("ms");
 
 const data = new SlashCommandBuilder()
   .setName("timeout")
-  .setDescription("Moderation | Time out a member for a set duration")
+  .setDescription("Moderation | Timeout a member for a set duration")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
   .addUserOption((opt) =>
-    opt.setName("target").setDescription("The member to timeout").setRequired(true)
+    opt
+      .setName("target")
+      .setDescription("The member to timeout")
+      .setRequired(true)
   )
   .addStringOption((opt) =>
     opt
       .setName("duration")
-      .setDescription("How long to timeout (e.g. 10m, 1h, 1d, 1w)")
+      .setDescription("Timeout duration (e.g. 1h, 30m, 2d)")
       .setRequired(true)
   )
   .addStringOption((opt) =>
@@ -29,10 +32,16 @@ const data = new SlashCommandBuilder()
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const targetUser = interaction.options.getUser("target", true);
-  const durationRaw = interaction.options.getString("duration", true);
-  const reason = interaction.options.getString("reason") || "No reason provided";
+  const durationInput = interaction.options.getString("duration", true);
+  const duration = ms(durationInput);
+  const reason =
+    interaction.options.getString("reason") || "No reason provided";
 
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.ModerateMembers)) {
+  if (
+    !interaction.memberPermissions.has(
+      PermissionsBitField.Flags.ModerateMembers
+    )
+  ) {
     return interaction.reply({
       content: "❌ You lack the `Timeout Members` permission to do this",
       flags: "Ephemeral",
@@ -53,15 +62,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     });
   }
 
-  let duration = ms(durationRaw);
-  if (!duration || duration < 10000 || duration > 28 * 24 * 60 * 60 * 1000) {
-    return interaction.reply({
-      content:
-        "❌ Invalid duration. Must be between **10s** and **28 days**. Examples: `10m`, `1h`, `2d`",
-      flags: "Ephemeral",
-    });
-  }
-
   let targetMember = null;
   try {
     targetMember = await interaction.guild.members.fetch(targetUser.id);
@@ -75,10 +75,12 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   }
 
   if (
-    targetMember.roles.highest.position >= interaction.member.roles.highest.position
+    targetMember.roles.highest.position >=
+    interaction.member.roles.highest.position
   ) {
     return interaction.reply({
-      content: "❌ You cannot timeout a member with an equal or higher role than you",
+      content:
+        "❌ You cannot timeout a member with an equal or higher role than you",
       flags: "Ephemeral",
     });
   }
@@ -90,6 +92,18 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         "- I don't have the **Moderate Members** permission\n" +
         "- The user has an equal or higher role than mine\n" +
         "- They are the server owner",
+      flags: "Ephemeral",
+    });
+  }
+
+  if (!duration) {
+    return interaction.reply({
+      content: "❌ Invalid duration. Examples: `1h`, `30m`, `2d`",
+      flags: "Ephemeral",
+    });
+  } else if (duration < 10000 || duration > 28 * 24 * 60 * 60 * 1000) {
+    return interaction.reply({
+      content: "❌ Invalid duration. Must be between 10 seconds and 28 days.",
       flags: "Ephemeral",
     });
   }
@@ -108,7 +122,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     .setColor("Yellow")
     .setTitle("✅ User timed out")
     .addFields(
-      { name: "Target", value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+      {
+        name: "Target",
+        value: `${targetUser.tag} (${targetUser.id})`,
+        inline: true,
+      },
       { name: "Duration", value: durationRaw, inline: true },
       { name: "Reason", value: reason, inline: true }
     );

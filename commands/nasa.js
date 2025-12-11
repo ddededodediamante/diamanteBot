@@ -35,14 +35,13 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     const items = response.data.collection.items;
     const images = items.filter((i) => i.data[0].media_type === "image");
     const media = images[Math.floor(Math.random() * images.length)];
-    const { description, title, date_created } = media.data[0];
+    const { title, date_created } = media.data[0];
 
     if (items.length === 0)
       return await interaction.reply("❌ No images found for your query");
 
     const embed = new EmbedBuilder()
       .setTitle(title)
-      .setDescription(description)
       .setImage(media.links[0].href)
       .setFooter({ text: items.length + " results" })
       .setTimestamp(new Date(date_created));

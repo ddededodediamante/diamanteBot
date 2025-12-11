@@ -17,6 +17,9 @@ const data = new SlashCommandBuilder()
   )
   .addStringOption((option) =>
     option.setName("reason").setDescription("The reason for the kick")
+  )
+  .addBooleanOption((option) =>
+    option.setName("dm").setDescription("Send a DM before banning?")
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
@@ -50,7 +53,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   let targetMember = null;
   try {
     targetMember = await interaction.guild.members.fetch(targetUser.id);
-  } catch {}
+  } catch { }
 
   if (!targetMember) {
     return interaction.reply({
@@ -81,6 +84,16 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     });
   }
 
+  let dmSent = false;
+  if (dmUser) {
+    await targetUser
+      .send(`
+        You have been kicked from **${interaction.guild.name}**.\nReason: **${reason}**
+      `)
+      .then(() => { dmSent = true; })
+      .catch(() => { });
+  }
+
   await targetMember.kick(`${reason} | ${interaction.user.tag}`);
 
   const embed = new EmbedBuilder()
@@ -90,10 +103,11 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       {
         name: "Target",
         value: `${targetUser.tag} (${targetUser.id})`,
-        inline: true,
+
       },
-      { name: "Reason", value: reason, inline: true }
-    );
+      { name: "Reason", value: reason }
+    )
+    .setFooter({ text: dmSent ? 'User was messaged' : 'User was not messaged' });
 
   return await interaction.reply({ embeds: [embed], flags: "Ephemeral" });
 };

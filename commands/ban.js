@@ -6,23 +6,42 @@ const {
   ChatInputCommandInteraction,
   PermissionsBitField,
 } = require("discord.js");
+const ms = require("ms");
+
+const TempBan = require("../models/tempBan");
 
 const data = new SlashCommandBuilder()
   .setName("ban")
-  .setDescription("Moderation | Bans a member permanently")
+  .setDescription("Moderation | Bans a member permanently or temporarily")
   .setContexts(InteractionContextType.Guild)
   .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
-  .addUserOption((opt) =>
-    opt.setName("target").setDescription("The member to ban").setRequired(true)
+  .addUserOption(option =>
+    option
+      .setName("target")
+      .setDescription("The member to ban")
+      .setRequired(true)
   )
-  .addStringOption((opt) =>
-    opt.setName("reason").setDescription("The reason of the ban")
+  .addStringOption(option =>
+    option.setName("reason").setDescription("The reason of the ban")
+  )
+  .addBooleanOption(option =>
+    option.setName("dm").setDescription("Send a DM before banning?")
+  )
+  .addStringOption(option =>
+    option
+      .setName("duration")
+      .setDescription(
+        "Ban duration (e.g. 1h, 30m, 2d). Leave empty for permanent."
+      )
   );
 
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const targetUser = interaction.options.getUser("target", true);
   const reason =
     interaction.options.getString("reason") || "No reason provided";
+  const dmUser = interaction.options.getBoolean("dm") ?? false;
+  const durationInput = interaction.options.getString("duration");
+  const duration = durationInput ? ms(durationInput) : null;
 
   if (
     !interaction.memberPermissions.has(PermissionsBitField.Flags.BanMembers)
@@ -75,7 +94,9 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       });
     }
   } else {
-    const already = await interaction.guild.bans.fetch(targetUser.id).catch(() => null);
+    const already = await interaction.guild.bans
+      .fetch(targetUser.id)
+      .catch(() => null);
 
     if (already) {
       return interaction.reply({
@@ -85,9 +106,41 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     }
   }
 
+  let dmSent = false;
+  if (dmUser) {
+    await targetUser
+      .send(
+        `You have been banned from **${interaction.guild.name}**.\nReason: **${reason}**`
+      )
+      .then(() => {
+        dmSent = true;
+      })
+      .catch(() => {});
+  }
+
+  if (
+    duration &&
+    (duration < 60 * 1000 || duration > 365 * 24 * 60 * 60 * 1000)
+  ) {
+    return interaction.reply({
+      content: "❌ Invalid duration. Must be between 1 minute and 1 year.",
+      flags: "Ephemeral",
+    });
+  }
+
   await interaction.guild.members.ban(targetUser.id, {
     reason: `${reason} | ${interaction.user.tag}`,
   });
+
+  if (duration) {
+    await TempBan.create({
+      guildId: interaction.guild.id,
+      userId: targetUser.id,
+      reason,
+      expiresAt: new Date(Date.now() + duration),
+      moderatorId: interaction.user.id,
+    });
+  }
 
   const embed = new EmbedBuilder()
     .setColor("Green")
@@ -96,12 +149,18 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       {
         name: "Target",
         value: `${targetUser.tag} (${targetUser.id})`,
-        inline: true,
       },
-      { name: "Reason", value: reason, inline: true }
-    );
+      { name: "Reason", value: reason },
+      {
+        name: "Temporary?",
+        value: duration ? `Yes, ${durationInput}` : "No, permanent",
+      }
+    )
+    .setFooter({
+      text: dmSent ? "User was messaged" : "User was not messaged",
+    });
 
-  return await interaction.reply({ embeds: [embed], flags: "Ephemeral" });
+  await interaction.reply({ embeds: [embed], flags: "Ephemeral" });
 };
 
 module.exports = { data, run };

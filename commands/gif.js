@@ -7,8 +7,8 @@ const {
 } = require("discord.js");
 const { default: axios } = require("axios");
 const { Worker } = require("worker_threads");
+const path = require("path");
 
-delete require.cache[require.resolve("../functions/gifEffects")];
 const effects = require("../functions/gifEffects");
 
 const data = new SlashCommandBuilder()
@@ -52,7 +52,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   if (attachment) {
     targetUrl = attachment.url;
   } else if (user) {
-    targetUrl = user.displayAvatarURL({ size: 1024 });
+    targetUrl = user.displayAvatarURL({ size: 512 });
   } else if (interaction.client.imageCache.has(interaction.user.id)) {
     targetUrl = interaction.client.imageCache.get(interaction.user.id);
     interaction.client.imageCache.delete(interaction.user.id);
@@ -80,40 +80,38 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     const inputType = attachment ? attachment.contentType : "image/png";
 
     const gifResult = await new Promise((resolve, reject) => {
-      const workerCode = `
-        const { parentPort, workerData } = require('worker_threads');
-        const effects = require(${JSON.stringify(
-          require.resolve("../functions/gifEffects")
-        )});
-        (async () => {
-          try {
-            const out = await effects[workerData.effect](Buffer.from(workerData.buffer), workerData.contentType);
-            parentPort.postMessage(out);
-          } catch (err) {
-            parentPort.postMessage({ __ERR: err.message });
-          }
-        })();
-      `;
-      const worker = new Worker(workerCode, {
-        eval: true,
-        workerData: {
-          effect,
-          buffer: inputBuffer,
-          contentType: inputType,
-        },
-      });
+      const worker = new Worker(
+        path.join(__dirname, "..", "functions", "gifWorker.js"),
+        {
+          workerData: {
+            effect,
+            contentType: inputType,
+            effectsPath: require.resolve("../functions/gifEffects"),
+          },
+        }
+      );
+
+      const safeBuffer = Buffer.from(inputBuffer);
+      worker.postMessage(safeBuffer, [safeBuffer.buffer]);
 
       worker.once("message", (msg) => {
-        if (msg && msg.__ERR) return reject(new Error(msg.__ERR));
+        if (msg && msg.__ERR) {
+          worker.terminate().catch(() => { });
+          return reject(new Error(msg.__ERR));
+        }
         resolve(msg);
-        worker.terminate();
+        worker.terminate().catch(() => { });
       });
+
       worker.once("error", (err) => {
-        worker.terminate();
+        worker.terminate().catch(() => { });
         reject(err);
       });
+
       worker.once("exit", (code) => {
-        if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
+        if (code !== 0) {
+          reject(new Error(`Worker exited with code ${code}`));
+        }
       });
     });
 

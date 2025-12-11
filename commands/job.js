@@ -6,6 +6,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ContainerBuilder,
+  EmbedBuilder,
 } = require("discord.js");
 const Users = require("../models/userSchema.js");
 
@@ -165,7 +166,6 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
     await new Promise((r) => setTimeout(r, 5000));
 
     const shuffled = [...sequence].sort(() => Math.random() - 0.5);
-
     const buttonContainer = new ContainerBuilder()
       .addTextDisplayComponents((text) =>
         text.setContent(
@@ -246,9 +246,8 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         user.economy.ruds += Math.floor(rudsEarn / 2);
 
         await interaction.followUp({
-          content: `❌ ${
-            attempt.length === sequence.length ? "Wrong order!" : "Times up!"
-          } You only earned **${Math.floor(rudsEarn / 2)}** ${rud} this shift.`,
+          content: `❌ ${attempt.length === sequence.length ? "Wrong order!" : "Times up!"
+            } You only earned **${Math.floor(rudsEarn / 2)}** ${rud} this shift.`,
         });
         await user.save();
 
@@ -269,23 +268,19 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       `**Job:** ${job.type || "None"}`,
       `**Level:** ${job.level || 0}`,
       `**Experience:** ${job.experience || 0} / ${job.nextLevelXP || 0}`,
-      `**Last Worked:** ${
-        job.lastWorked
-          ? `<t:${Math.floor(job.lastWorked.getTime() / 1000)}:R>`
-          : "Never"
+      `**Last Worked:** ${job.lastWorked
+        ? `<t:${Math.floor(job.lastWorked.getTime() / 1000)}:R>`
+        : "Never"
       }`,
     ];
 
-    const jobContainer = new ContainerBuilder()
-      .addTextDisplayComponents((text) =>
-        text.setContent(`### ${targetUser.username}'s Job`)
-      )
-      .addSeparatorComponents((sep) => sep.setDivider(true).setSpacing(1))
-      .addTextDisplayComponents((text) => text.setContent(info.join("\n")));
+    const jobEmbed = new EmbedBuilder()
+      .setTitle(`${targetUser.username}'s Job`)
+      .setDescription(info.join("\n"))
+      .setThumbnail(targetUser.displayAvatarURL({ size: 512 }));
 
     await interaction.reply({
-      components: [jobContainer],
-      flags: "IsComponentsV2",
+      embeds: [jobEmbed]
     });
   }
 };

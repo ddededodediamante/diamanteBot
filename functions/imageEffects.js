@@ -1,6 +1,121 @@
 const { toValidPath } = require("./path");
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 
+function drawTextInBox(ctx, text, box, color = "#000") {
+  ctx.save();
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+
+  text = (text ?? "").replace(/\r\n?/g, "\n").trim();
+  if (text.length === 0) {
+    ctx.restore();
+    return;
+  }
+
+  const setFont = (px) => {
+    ctx.font = `${Math.round(px)}px Arial`;
+  };
+
+  function wrapForWidth(text, maxWidth) {
+    const paragraphs = text.split("\n");
+    const out = [];
+
+    for (const para of paragraphs) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        out.push("");
+        continue;
+      }
+
+      let line = words[0];
+      for (let i = 1; i < words.length; i++) {
+        const w = words[i];
+        const test = line + " " + w;
+        const measured = ctx.measureText(test).width;
+        if (measured <= maxWidth) {
+          line = test;
+        } else {
+          if (ctx.measureText(w).width > maxWidth) {
+            out.push(line);
+            let part = "";
+            for (const ch of w) {
+              const testPart = part + ch;
+              if (ctx.measureText(testPart).width <= maxWidth) {
+                part = testPart;
+              } else {
+                if (part.length) out.push(part);
+                part = ch;
+              }
+            }
+            if (part.length) line = part;
+            else line = "";
+          } else {
+            out.push(line);
+            line = w;
+          }
+        }
+      }
+      if (line !== undefined) out.push(line);
+    }
+
+    return out;
+  }
+
+  let fontPx = 35;
+  let lines = [];
+  let lineHeightPx = 0;
+  while (fontPx >= 10) {
+    setFont(fontPx);
+    lines = wrapForWidth(text, box.w);
+    lineHeightPx = fontPx * 1.2;
+    const neededHeight = lines.length * lineHeightPx;
+    if (neededHeight <= box.h) break;
+    fontPx -= 1;
+  }
+
+  setFont(Math.max(fontPx, 10));
+  lineHeightPx = Math.max(
+    1,
+    Math.round(1.2 * Math.max(fontPx, 10))
+  );
+
+  lines = wrapForWidth(text, box.w);
+
+  const maxLines = Math.floor(box.h / lineHeightPx) || 1;
+  let clipped = false;
+  if (lines.length > maxLines) {
+    clipped = true;
+    lines = lines.slice(0, maxLines);
+
+    let last = lines[lines.length - 1];
+    const ell = "…";
+
+    while (ctx.measureText(last + ell).width > box.w && last.length > 0) {
+      last = last.slice(0, -1);
+    }
+    lines[lines.length - 1] = last + (last.length ? ell : ell);
+  }
+
+  const occupied = lines.length * lineHeightPx;
+  let startY = box.y + Math.max(0, (box.h - occupied) / 2);
+
+  let startX = box.x + box.w / 2;
+
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1, Math.round(fontPx / 14));
+
+  for (let i = 0; i < lines.length; i++) {
+    const y = Math.round(startY + i * lineHeightPx);
+    const line = lines[i];
+    if (ctx.lineWidth > 0) ctx.strokeText(line, startX, y);
+    ctx.fillText(line, startX, y);
+  }
+
+  ctx.restore();
+
+  return { fontPx, lines, clipped };
+}
+
 async function ddeShirt(buffer) {
   const image = await loadImage(buffer);
   const foreground = await loadImage(toValidPath("../images/dde-shirt.png"));
@@ -527,6 +642,27 @@ async function cat(buffer) {
   return canvas.toBuffer("image/png");
 }
 
+async function lisaPresentation(buffer, text) {
+  const image = await loadImage(buffer);
+  const background = await loadImage(
+    toValidPath("../images/lisa-presentation.png")
+  );
+
+  const canvas = createCanvas(background.width, background.height);
+  const ctx = canvas.getContext("2d");
+
+  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(image, 155, 234, 78, 78);
+
+  drawTextInBox(
+    ctx,
+    text,
+    { x: 118, y: 78, w: 383, h: 150 }
+  );
+
+  return canvas.toBuffer("image/png");
+}
+
 module.exports = {
   ddeShirt,
   waveDistort,
@@ -557,4 +693,5 @@ module.exports = {
   redAndBlueSwap,
   darken,
   cat,
+  lisaPresentation,
 };

@@ -40,12 +40,18 @@ const data = new SlashCommandBuilder()
       .setName("user")
       .setDescription("The user to use as an image")
       .setRequired(false)
+  )
+  .addStringOption((option) =>
+    option
+      .setName("text")
+      .setDescription("Optional text some effects need")
   );
 
 async function run(interaction = ChatInputCommandInteraction.prototype) {
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
+  const text = interaction.options.getString("text") || user?.globalName || "Text!";
 
   let targetUrl;
   if (attachment) {
@@ -54,7 +60,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
     targetUrl = user.displayAvatarURL({
       forceStatic: true,
       extension: "png",
-      size: 1024,
+      size: 512,
     });
   } else if (interaction.client.imageCache.has(interaction.user.id)) {
     targetUrl = interaction.client.imageCache.get(interaction.user.id);
@@ -82,7 +88,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
 
     const resultBuffer = await effects[effect](
       Buffer.from(response.data),
-      interaction
+      text
     );
 
     const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });

@@ -81,6 +81,8 @@ client.once(Events.ClientReady, async () => {
   await registerSlashCommands();
 
   await client.application.emojis.fetch();
+
+  require("./functions/tempBanChecker")(client);
 });
 
 client

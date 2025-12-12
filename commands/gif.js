@@ -23,25 +23,32 @@ const data = new SlashCommandBuilder()
     ApplicationIntegrationType.GuildInstall,
     ApplicationIntegrationType.UserInstall
   )
-  .addStringOption((option) =>
+  .addStringOption(option =>
     option
       .setName("effect")
       .setDescription("The effect to apply")
       .setRequired(true)
       .setAutocomplete(true)
   )
-  .addAttachmentOption((option) =>
+  .addAttachmentOption(option =>
     option
       .setName("image")
       .setDescription("The image or GIF to use")
       .setRequired(false)
   )
-  .addUserOption((option) =>
+  .addUserOption(option =>
     option
       .setName("user")
       .setDescription("The user to use as an image")
       .setRequired(false)
   );
+
+function isLinkGIF(link = "") {
+  const parts = link.split("/");
+  const lastPart = parts[parts.length - 1]; 
+  const filename = lastPart.split("?")[0]; 
+  return filename.toLowerCase().endsWith(".gif");
+}
 
 async function run(interaction = ChatInputCommandInteraction.prototype) {
   const effect = interaction.options.getString("effect");
@@ -49,19 +56,20 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
   const user = interaction.options.getUser("user");
 
   let targetUrl;
-  if (attachment) {
-    targetUrl = attachment.url;
-  } else if (user) {
-    targetUrl = user.displayAvatarURL({ size: 512 });
-  } else if (interaction.client.imageCache.has(interaction.user.id)) {
+  let isGif = false;
+
+  if (attachment) targetUrl = attachment.url;
+  else if (user) targetUrl = user.displayAvatarURL({ size: 512 });
+  else if (interaction.client.imageCache.has(interaction.user.id)) {
     targetUrl = interaction.client.imageCache.get(interaction.user.id);
     interaction.client.imageCache.delete(interaction.user.id);
-  } else {
+  } else
     return interaction.reply({
       content: '❌ You must specify either "image" or "user"',
       flags: "Ephemeral",
     });
-  }
+
+  isGif = isLinkGIF(targetUrl);
 
   if (typeof effects[effect] !== "function") {
     return interaction.reply({
@@ -77,7 +85,6 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
       responseType: "arraybuffer",
     });
     const inputBuffer = Buffer.from(response.data);
-    const inputType = attachment ? attachment.contentType : "image/png";
 
     const gifResult = await new Promise((resolve, reject) => {
       const worker = new Worker(
@@ -85,39 +92,36 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
         {
           workerData: {
             effect,
-            contentType: inputType,
+            isGif,
             effectsPath: require.resolve("../functions/gifEffects"),
           },
         }
       );
 
-      const safeBuffer = Buffer.from(inputBuffer);
-      worker.postMessage(safeBuffer, [safeBuffer.buffer]);
+      worker.postMessage(inputBuffer, [inputBuffer.buffer]);
 
-      worker.once("message", (msg) => {
+      worker.once("message", msg => {
         if (msg && msg.__ERR) {
-          worker.terminate().catch(() => { });
+          worker.terminate().catch(() => {});
           return reject(new Error(msg.__ERR));
         }
         resolve(msg);
-        worker.terminate().catch(() => { });
+        worker.terminate().catch(() => {});
       });
 
-      worker.once("error", (err) => {
-        worker.terminate().catch(() => { });
+      worker.once("error", err => {
+        worker.terminate().catch(() => {});
         reject(err);
       });
 
-      worker.once("exit", (code) => {
-        if (code !== 0) {
-          reject(new Error(`Worker exited with code ${code}`));
-        }
+      worker.once("exit", code => {
+        if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
       });
     });
 
     if (gifResult === "only_gif") {
       return await interaction.editReply({
-        content: "❌ Only GIF files are supported for this effect"
+        content: "❌ Only GIF files are supported for this effect",
       });
     }
 
@@ -126,9 +130,7 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
       : Buffer.from(gifResult);
     const file = new AttachmentBuilder(gifBuffer, { name: "output.gif" });
 
-    return interaction.editReply({
-      files: [file]
-    });
+    return interaction.editReply({ files: [file] });
   } catch (error) {
     console.error(error);
     const method =

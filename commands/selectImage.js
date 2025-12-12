@@ -25,7 +25,7 @@ const run = async (
   const message = interaction.targetMessage;
 
   const img = message.attachments.find(
-    (i) =>
+    i =>
       i.contentType?.startsWith("image/") || /\.(jpe?g|png|gif)$/i.test(i.name)
   );
 
@@ -38,8 +38,11 @@ const run = async (
 
   interaction.client.imageCache.set(interaction.user.id, img.url);
 
+  const isGif = img.contentType === "image/gif" || /\.gif$/i.test(img.name);
+  const typeLabel = isGif ? "GIF" : "Image";
+
   await interaction.reply({
-    content: "✅ Image saved for your next `/image` or `/gif` call",
+    content: `✅ ${typeLabel} saved for your next \`/image\` or \`/gif\` call`,
     flags: "Ephemeral",
   });
 };

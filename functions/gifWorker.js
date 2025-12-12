@@ -5,7 +5,7 @@ parentPort.on("message", async (inputBuffer) => {
   try {
     const buffer = Buffer.isBuffer(inputBuffer) ? inputBuffer : Buffer.from(inputBuffer);
 
-    const out = await effects[workerData.effect](buffer, workerData.contentType);
+    const out = await effects[workerData.effect](buffer, workerData.isGif);
 
     if (out === "only_gif") {
       parentPort.postMessage("only_gif");

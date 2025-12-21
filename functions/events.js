@@ -3,6 +3,7 @@ const {
   Events,
   GuildMember,
   CommandInteraction,
+  inlineCode,
 } = require("discord.js");
 const Servers = require("../models/serverSchema.js");
 
@@ -15,7 +16,7 @@ const gifEffects = require("./gifEffects");
 module.exports = async (client = Client.prototype) => {
   client.removeAllListeners();
 
-  client.on(Events.GuildCreate, async (guild) => {
+  client.on(Events.GuildCreate, async guild => {
     try {
       let existing = await Servers.findOne({ id: guild.id });
       if (!existing) {
@@ -52,21 +53,21 @@ module.exports = async (client = Client.prototype) => {
         let choices = [];
 
         if (interaction.commandName === "image") {
-          let initialChoices = Object.keys(imageEffects).map((key) => ({
+          let initialChoices = Object.keys(imageEffects).map(key => ({
             name: key.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase(),
             value: key,
           }));
 
-          choices = initialChoices.filter((choice) =>
+          choices = initialChoices.filter(choice =>
             choice.name.includes(focused.toLowerCase())
           );
         } else if (interaction.commandName === "gif") {
-          let initialChoices = Object.keys(gifEffects).map((key) => ({
+          let initialChoices = Object.keys(gifEffects).map(key => ({
             name: key.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase(),
             value: key,
           }));
 
-          choices = initialChoices.filter((choice) =>
+          choices = initialChoices.filter(choice =>
             choice.name.includes(focused.toLowerCase())
           );
         }
@@ -170,68 +171,155 @@ module.exports = async (client = Client.prototype) => {
     }
   );
 
-  const countingMistakes = new Set();
-
-  client.on(Events.MessageCreate, async (message) => {
+  const deletedByMe = new Set();
+  client.on(Events.MessageCreate, async message => {
     if (message.author.bot || !message.guildId) return;
 
     const config = await Servers.findOne({ id: message.guildId });
-    if (!config?.counting) return;
 
-    async function getMistakesThread() {
-      let thread;
-      try {
-        if (mistakeThreadId) {
-          thread = await client.channels.fetch(mistakeThreadId);
-          if (thread?.isThread() && thread.archived) {
-            await thread.setArchived(false, "Reopening mistakes thread");
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching mistakes thread:", err);
-        thread = null;
+    if (config?.wordStory?.channel === message.channelId) {
+      const { wordsPerUser = 1, lastUser } = config.wordStory;
+
+      const words = message.content.trim().split(/\s+/);
+
+      if (words.length > wordsPerUser) {
+        if (message.deletable) await message.delete();
+        return;
       }
 
-      if (!thread?.isThread()) {
+      if (lastUser === message.author.id) {
+        if (message.deletable) await message.delete();
+        return;
+      }
+
+      await Servers.updateOne(
+        { id: message.guildId },
+        {
+          $push: {
+            "wordStory.messages": {
+              messageId: message.id,
+              userId: message.author.id,
+              content: message.content.trim(),
+            },
+          },
+          $set: {
+            "wordStory.lastUser": message.author.id,
+          },
+        }
+      );
+
+      return await message.react("✅").catch(() => {});
+    }
+
+    if (config?.counting?.channel === message.channelId) {
+      async function getMistakesThread() {
+        let thread;
         try {
-          thread = await message.channel.threads.create({
-            name: "Counting Mistakes",
-            autoArchiveDuration: 60,
-            reason: "Initializing mistakes thread",
-          });
-          mistakeThreadId = thread.id;
-          await Servers.updateOne(
-            { id: message.guildId },
-            { $set: { "counting.mistakeThreadId": mistakeThreadId } }
-          );
+          if (mistakeThreadId) {
+            thread = await client.channels.fetch(mistakeThreadId);
+            if (thread?.isThread() && thread.archived) {
+              await thread.setArchived(false, "Reopening mistakes thread");
+            }
+          }
         } catch (err) {
-          console.error("Could not create mistakes thread:", err);
+          console.error("Error fetching mistakes thread:", err);
           thread = null;
         }
+
+        if (!thread?.isThread()) {
+          try {
+            thread = await message.channel.threads.create({
+              name: "Counting Mistakes",
+              autoArchiveDuration: 60,
+              reason: "Initializing mistakes thread",
+            });
+            mistakeThreadId = thread.id;
+            await Servers.updateOne(
+              { id: message.guildId },
+              { $set: { "counting.mistakeThreadId": mistakeThreadId } }
+            );
+          } catch (err) {
+            console.error("Could not create mistakes thread:", err);
+            thread = null;
+          }
+        }
+
+        return thread;
       }
 
-      return thread;
-    }
+      const {
+        resetOnWrong = false,
+        count = 0,
+        lastUser,
+        mistakeThreadId,
+      } = config.counting;
 
-    const { channel: channelId, resetOnWrong = false } = config.counting;
-    let { count = 0, lastUser, mistakeThreadId } = config.counting;
-
-    if (message.channelId !== channelId) return;
-
-    const got = Number(message.content.trim().split(" ")[0]);
-    if (isNaN(got)) {
-      if (message.deletable) {
-        countingMistakes.add(message.id);
-        await message.delete();
+      const got = Number(message.content.trim().split(" ")[0]);
+      if (isNaN(got)) {
+        if (message.deletable) {
+          deletedByMe.add(message.id);
+          await message.delete();
+        }
+        return;
       }
-      return;
-    }
 
-    const expected = count + 1;
+      const expected = count + 1;
+      if (message.author.id === lastUser) {
+        const thread = await getMistakesThread();
+        const notice = `🛑 ${message.author} tried to count twice in a row. The next number is **${expected}**.`;
+        let sentInThread = false;
+        if (thread?.isThread()) {
+          try {
+            await thread.send(notice);
+            sentInThread = true;
+          } catch (err) {
+            console.error("Failed to send counting mistake in thread:", err);
+          }
+        }
 
-    if (message.author.id === lastUser) {
+        if (message.deletable) {
+          deletedByMe.add(message.id);
+          message.delete();
+        } else if (!sentInThread) message.react("🛑").catch(() => {});
+        return;
+      }
+
+      if (got === expected) {
+        await Servers.updateOne(
+          { id: message.guildId },
+          {
+            $set: {
+              "counting.count": expected,
+              "counting.lastUser": message.author.id,
+            },
+          }
+        );
+        return await message.react("✅").catch(() => {});
+      }
+
+      if (resetOnWrong) {
+        await Servers.updateOne(
+          { id: message.guildId },
+          { $set: { "counting.count": 0, "counting.lastUser": null } }
+        );
+        if (
+          message.channel
+            .permissionsFor(message.guild.members.me)
+            .has("SendMessages")
+        )
+          await message.reply(
+            `❌ Wrong number! Count has been reset. The next number is **1**.`
+          );
+        if (!message.deletable) message.react("🔄").catch(() => {});
+        else {
+          deletedByMe.add(message.id);
+          message.delete();
+        }
+        return;
+      }
+
       const thread = await getMistakesThread();
-      const notice = `🛑 ${message.author} tried to count twice in a row. The next number is **${expected}**.`;
+      const notice = `❌ <@${message.author.id}> posted **${got}**, but the next number should be **${expected}**.`;
       let sentInThread = false;
       if (thread?.isThread()) {
         try {
@@ -242,105 +330,72 @@ module.exports = async (client = Client.prototype) => {
         }
       }
 
-      if (message.deletable) {
-        countingMistakes.add(message.id);
-        message.delete();
-      } else if (!sentInThread) message.react("🛑").catch(() => {});
-      return;
-    }
-
-    if (got === expected) {
-      await Servers.updateOne(
-        { id: message.guildId },
-        {
-          $set: {
-            "counting.count": expected,
-            "counting.lastUser": message.author.id,
-          },
+      if (!sentInThread) {
+        try {
+          await message.author.send(
+            `❌ In <#${message.channelId}>, you sent **${got}**, but the next number should be **${expected}**.`
+          );
+        } catch (err) {
+          console.warn(
+            `Failed to DM user ${message.author.tag} for counting mistake`
+          );
         }
-      );
-      return await message.react("✅").catch(() => {});
-    }
-
-    if (resetOnWrong) {
-      await Servers.updateOne(
-        { id: message.guildId },
-        { $set: { "counting.count": 0, "counting.lastUser": null } }
-      );
-      if (
-        message.channel
-          .permissionsFor(message.guild.members.me)
-          .has("SendMessages")
-      )
-        await message.reply(
-          `❌ Wrong number! Count has been reset. The next number is **1**.`
-        );
-      if (!message.deletable) message.react("🔄").catch(() => {});
-      else {
-        countingMistakes.add(message.id);
-        message.delete();
       }
+
+      if (message.deletable) {
+        deletedByMe.add(message.id);
+        message.delete();
+      } else message.react("❌").catch(() => {});
+
       return;
     }
-
-    const thread = await getMistakesThread();
-    const notice = `❌ <@${message.author.id}> posted **${got}**, but the next number should be **${expected}**.`;
-    let sentInThread = false;
-    if (thread?.isThread()) {
-      try {
-        await thread.send(notice);
-        sentInThread = true;
-      } catch (err) {
-        console.error("Failed to send counting mistake in thread:", err);
-      }
-    }
-
-    if (!sentInThread) {
-      try {
-        await message.author.send(
-          `❌ In <#${message.channelId}>, you sent **${got}**, but the next number should be **${expected}**.`
-        );
-      } catch (err) {
-        console.warn(
-          `Failed to DM user ${message.author.tag} for counting mistake`
-        );
-      }
-    }
-
-    if (message.deletable) {
-      countingMistakes.add(message.id);
-      message.delete();
-    } else message.react("❌").catch(() => {});
   });
 
-  client.on(Events.MessageDelete, async (message) => {
-    if (message.author.bot || !message.guildId) return;
-    if (countingMistakes.has(message.id)) {
-      countingMistakes.delete(message.id);
+  client.on(Events.MessageDelete, async message => {
+    if (message.author.bot || !message.guildId || !message.channelId) return;
+    if (deletedByMe.has(message.id)) {
+      deletedByMe.delete(message.id);
       return;
     }
 
     const config = await Servers.findOne({ id: message.guildId });
-    if (!config?.counting) return;
 
-    const { channel: channelId } = config.counting;
-    let { count = 0, lastUser } = config.counting;
+    if (config?.wordStory?.channel === message.channelId) {
+      const { lastUser } = config.wordStory;
 
-    if (message.channelId !== channelId) return;
+      const content = inlineCode(message.content.trim());
 
-    const got = Number(message.content.trim().split(" ")[0]);
+      if (message.author.id === lastUser) {
+        try {
+          await message.channel.send({
+            content: `${message.author}: ${content}`,
+            allowedMentions: { parse: [] },
+          });
+        } catch (_) {}
+      }
 
-    if (!isNaN(got) && got === count && message.author.id === lastUser) {
-      try {
-        await message.channel.send({
-          content: `${message.author}: ${count}`,
-          allowedMentions: { parse: [] },
-        });
-      } catch (_) {}
+      return;
+    }
+
+    if (config?.counting?.channel === message.channelId) {
+      const { count = 0, lastUser } = config.counting;
+
+      const got = Number(message.content.trim().split(" ")[0]);
+
+      if (!isNaN(got) && got === count && message.author.id === lastUser) {
+        try {
+          await message.channel.send({
+            content: `${message.author}: ${count}`,
+            allowedMentions: { parse: [] },
+          });
+        } catch (_) {}
+      }
+
+      return;
     }
   });
 
-  client.on(Events.Error, (err) => {
+  client.on(Events.Error, err => {
     console.error(err);
   });
 };

@@ -1,4 +1,4 @@
-const TempBan = require("../models/tempBan");
+const TempBan = require("../models/tempBanSchema");
 
 module.exports = async (client) => {
   const check = async () => {

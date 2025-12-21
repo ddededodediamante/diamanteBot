@@ -28,19 +28,15 @@ const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub =>
     sub
-      .setName("settings")
-      .setDescription("Configure word story settings")
+      .setName("words-per-user")
+      .setDescription("Set words allowed per user")
       .addIntegerOption(opt =>
         opt
           .setName("words")
           .setDescription("Words allowed per user")
           .setMinValue(1)
           .setMaxValue(10)
-      )
-      .addBooleanOption(opt =>
-        opt
-          .setName("remove-on-delete")
-          .setDescription("Remove story part when message is deleted")
+          .setRequired(true)
       )
   )
   .addSubcommand(sub =>
@@ -74,6 +70,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
 
       if (serverConfig.wordStory.channel !== channel.id)
         serverConfig.wordStory.messages = [];
+
       serverConfig.wordStory.channel = channel.id;
       serverConfig.wordStory.lastUser = null;
 
@@ -84,33 +81,19 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         .setDescription(`Word story enabled in ${channel}`);
       break;
     }
-    case "settings": {
-      let words = interaction.options.getInteger("words");
-      let removeOnDelete = interaction.options.getBoolean("remove-on-delete");
 
-      if (words === null && removeOnDelete === null) {
-        return await interaction.reply({
-          content: "❌ No settings were modified",
-          flags: "Ephemeral",
-        });
-      }
-
-      words = words ?? 1;
-      removeOnDelete = removeOnDelete ?? true;
+    case "words-per-user": {
+      const words = interaction.options.getInteger("words");
 
       serverConfig.wordStory.wordsPerUser = words;
-      serverConfig.wordStory.removeOnDelete = removeOnDelete;
       await serverConfig.save();
 
       embed
-        .setTitle("✅ Word Story Settings Updated")
-        .setDescription(
-          `Words per user: **${words}**\nRemove on delete: **${
-            removeOnDelete ? "Yes" : "No"
-          }**`
-        );
+        .setTitle("✅ Word Story Updated")
+        .setDescription(`Words per user: **${words}**`);
       break;
     }
+
     case "view": {
       const messages = serverConfig.wordStory.messages;
 
@@ -134,6 +117,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
 
       return interaction.reply({ embeds: [embed] });
     }
+
     case "disable": {
       if (!serverConfig.wordStory.channel)
         return interaction.reply({
@@ -151,6 +135,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
         .setDescription("The word story has been disabled");
       break;
     }
+
     default:
       return interaction.reply({
         content: "❌ Unknown subcommand",

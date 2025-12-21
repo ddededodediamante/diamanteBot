@@ -3,17 +3,17 @@ const mongoose = require("mongoose");
 const ServerSchema = new mongoose.Schema({
   id: {
     type: String,
-    required: true, 
+    required: true,
     unique: true,
   },
   welcome: {
-    channel: { type: String, default: null }, 
-    messages: { type: [String], default: ["Welcome {user}!"] }, 
+    channel: { type: String, default: null },
+    messages: { type: [String], default: ["Welcome, {user}!"] },
     role: { type: String, default: null },
   },
   farewell: {
     channel: { type: String, default: null },
-    messages: { type: [String], default: ["Goodbye {user}!"] },
+    messages: { type: [String], default: ["Goodbye, {user}!"] },
   },
   counting: {
     channel: { type: String, default: null },
@@ -21,6 +21,21 @@ const ServerSchema = new mongoose.Schema({
     lastUser: { type: String, default: null },
     mistakeThreadId: { type: String, default: null },
     resetOnWrong: { type: Boolean, default: false },
+  },
+  wordStory: {
+    channel: { type: String, default: null },
+    wordsPerUser: { type: Number, default: 1 },
+    lastUser: { type: String, default: null },
+    messages: {
+      type: [
+        {
+          messageId: String,
+          userId: String,
+          content: String,
+        },
+      ],
+      default: [],
+    },
   },
   createdAt: {
     type: Date,

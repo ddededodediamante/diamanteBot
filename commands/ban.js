@@ -8,7 +8,7 @@ const {
 } = require("discord.js");
 const ms = require("ms");
 
-const TempBan = require("../models/tempBan");
+const TempBan = require("../models/tempBanSchema");
 
 const data = new SlashCommandBuilder()
   .setName("ban")
@@ -24,17 +24,21 @@ const data = new SlashCommandBuilder()
   .addStringOption(option =>
     option.setName("reason").setDescription("The reason of the ban")
   )
-  .addBooleanOption(option =>
-    option.setName("dm").setDescription("Send a DM before banning?")
-  )
   .addStringOption(option =>
     option
       .setName("duration")
       .setDescription(
         "Ban duration (e.g. 1h, 30m, 2d). Leave empty for permanent."
       )
+      .setRequired(false)
+  )
+  .addBooleanOption(option =>
+    option
+      .setName("dm")
+      .setDescription("Send a DM before banning?")
+      .setRequired(false)
   );
-
+  
 const run = async (interaction = ChatInputCommandInteraction.prototype) => {
   const targetUser = interaction.options.getUser("target", true);
   const reason =
@@ -87,7 +91,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
       return interaction.reply({
         content:
           "❌ I cannot ban this user! Possible reasons:\n" +
-          "- I don't have the **Ban Members** permission\n" +
+          "- I lack the `Ban Members` permission\n" +
           "- The user has an equal or higher role than mine\n" +
           "- They are the server owner",
         flags: "Ephemeral",
@@ -100,7 +104,7 @@ const run = async (interaction = ChatInputCommandInteraction.prototype) => {
 
     if (already) {
       return interaction.reply({
-        content: "❌ The user selected is already banned.",
+        content: "❌ The user selected is already banned",
         flags: "Ephemeral",
       });
     }

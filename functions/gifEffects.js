@@ -14,14 +14,25 @@ if (typeof document === "undefined") {
 const DEFAULT_QUALITY = 6;
 
 async function loadFrames(buffer, isGif) {
-  return isGif
-    ? await gifFrames({
-        url: buffer,
-        frames: "all",
-        outputType: "canvas",
-        cumulative: true,
-      })
-    : await loadImage(buffer);
+  if (!isGif) {
+    const img = await loadImage(buffer);
+    return {
+      images: [img],
+      delays: [50]
+    };
+  }
+
+  const frames = await gifFrames({
+    url: buffer,
+    frames: "all",
+    outputType: "canvas",
+    cumulative: false
+  });
+
+  const images = await Promise.all(frames.map(f => f.getImage()));
+  const delays = frames.map(f => (f.frameInfo.delay ?? 5) * 10);
+
+  return { images, delays };
 }
 
 function getFrameIndex(i, spriteCount, framesLength) {
@@ -34,7 +45,7 @@ function easeInOut(x) {
 }
 
 async function rainbow(buffer, isGif) {
-  const frames = await loadFrames(buffer, isGif);
+  const { images, delays } = await loadFrames(buffer, isGif);
 
   const width = isGif ? frames[0].frameInfo.width : frames.width;
   const height = isGif ? frames[0].frameInfo.height : frames.height;
@@ -55,7 +66,7 @@ async function rainbow(buffer, isGif) {
   for (let i = 0; i < framesLength; i++) {
     ctx.clearRect(0, 0, width, height);
 
-    const frame = isGif ? await frames[i].getImage() : frames;
+    const frame = images[i % images.length];
 
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(frame, 0, 0, width, height);
@@ -64,7 +75,7 @@ async function rainbow(buffer, isGif) {
     ctx.fillStyle = `hsl(${(i / framesLength) * 360}, 100%, 50%)`;
     ctx.fillRect(0, 0, width, height);
 
-    if (isGif) encoder.setDelay((frames[i].frameInfo.delay ?? 5) * 10);
+    if (isGif) encoder.setDelay(delays[i]);
     encoder.addFrame(ctx);
   }
 

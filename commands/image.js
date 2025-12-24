@@ -4,6 +4,11 @@ const {
   InteractionContextType,
   ChatInputCommandInteraction,
   AttachmentBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  TextDisplayBuilder,
+  ContainerBuilder,
+  MessageFlags,
 } = require("discord.js");
 const { default: axios } = require("axios");
 
@@ -42,16 +47,17 @@ const data = new SlashCommandBuilder()
       .setRequired(false)
   )
   .addStringOption((option) =>
-    option
-      .setName("text")
-      .setDescription("Optional text some effects need")
+    option.setName("text").setDescription("Optional text some effects need")
   );
 
 async function run(interaction = ChatInputCommandInteraction.prototype) {
+  const MAX_INPUT_BYTES = 8 * 1024 * 1024;
+
   const effect = interaction.options.getString("effect");
   const attachment = interaction.options.getAttachment("image");
   const user = interaction.options.getUser("user");
-  const text = interaction.options.getString("text") || user?.globalName || "Text!";
+  const text =
+    interaction.options.getString("text") || user?.globalName || "Text!";
 
   let targetUrl;
   if (attachment) {
@@ -86,13 +92,41 @@ async function run(interaction = ChatInputCommandInteraction.prototype) {
       responseType: "arraybuffer",
     });
 
-    const resultBuffer = await effects[effect](
-      Buffer.from(response.data),
-      text
+    const inputBuffer = Buffer.from(response.data);
+    if (inputBuffer.length > MAX_INPUT_BYTES) {
+      const sizeMB = (inputBuffer.length / (1024 * 1024)).toFixed(2);
+
+      return interaction.editReply({
+        content: `❌ File too large (${sizeMB} MB). Max allowed is 25 MB`,
+      });
+    }
+
+    const resultBuffer = await effects[effect](inputBuffer, text);
+
+    const outputSizeBytes = resultBuffer.length;
+    const outputSizeKB = (outputSizeBytes / 1024).toFixed(1);
+    const outputSizeMB = (outputSizeBytes / (1024 * 1024)).toFixed(2);
+
+    const mediaGallery = new MediaGalleryBuilder().addItems(
+      new MediaGalleryItemBuilder().setURL(`attachment://output.png`)
     );
 
+    const textDisplay = new TextDisplayBuilder().setContent(
+      `-# ${effect.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()} | ${
+        outputSizeMB < 1 ? `${outputSizeKB} KB` : `${outputSizeMB} MB`
+      }`
+    );
+
+    const container = new ContainerBuilder()
+      .addMediaGalleryComponents(mediaGallery)
+      .addTextDisplayComponents(textDisplay);
+
     const file = new AttachmentBuilder(resultBuffer, { name: "output.png" });
-    return interaction.editReply({ files: [file] });
+    return interaction.editReply({
+      components: [container],
+      files: [file],
+      flags: MessageFlags.IsComponentsV2,
+    });
   } catch (error) {
     console.error(error);
     const method =

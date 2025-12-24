@@ -11,16 +11,16 @@ if (typeof document === "undefined") {
   };
 }
 
-const DEFAULT_QUALITY = 6;
+const DEFAULT_QUALITY = 1;
 
 async function loadFrames(buffer, isGif) {
   return isGif
     ? await gifFrames({
-      url: buffer,
-      frames: "all",
-      outputType: "canvas",
-      cumulative: false,
-    })
+        url: buffer,
+        frames: "all",
+        outputType: "canvas",
+        cumulative: false,
+      })
     : await loadImage(buffer);
 }
 
@@ -41,7 +41,7 @@ async function rainbow(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -82,7 +82,7 @@ async function boykisser(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 1;
 
-  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -131,7 +131,7 @@ async function thanosReactThisMan(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 1;
 
-  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -181,7 +181,7 @@ async function scaryAttack(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 1;
 
-  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -233,7 +233,7 @@ async function compress(buffer, isGif) {
 
   const framesLength = frames.length;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(255);
   encoder.setTransparent(0x00000000);
@@ -262,7 +262,7 @@ async function waveDistortAnimated(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -323,7 +323,7 @@ async function violentSquish(buffer, isGif) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 20;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -364,7 +364,7 @@ async function rotate(buffer, isGif) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setDelay(isGif ? 0 : 50);
@@ -403,7 +403,7 @@ async function rotateCounterclockwise(buffer, isGif) {
   const height = isGif ? frames[0].frameInfo.height : frames.height;
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setDelay(isGif ? 0 : 50);
@@ -449,7 +449,7 @@ async function shuffle(buffer, isGif) {
 
   const framesLength = frames.length;
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -479,7 +479,7 @@ async function heartbeat(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 30;
 
-  const heartbeatScale = i => {
+  const heartbeatScale = (i) => {
     const t = i / (framesLength - 1);
 
     let progress;
@@ -492,7 +492,7 @@ async function heartbeat(buffer, isGif) {
     }
   };
 
-  const encoder = new GIFEncoder(width, height);
+  const encoder = new GIFEncoder(width, height, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -528,7 +528,9 @@ async function heartbeat(buffer, isGif) {
 }
 
 async function getThisManA(buffer, isGif) {
-  const spriteImage = await loadImage(toValidPath("../images/get-this-man-a.png"));
+  const spriteImage = await loadImage(
+    toValidPath("../images/get-this-man-a.png")
+  );
   const spriteWidth = 485;
   const spriteHeight = 200;
   const spriteCount = 39;
@@ -537,7 +539,7 @@ async function getThisManA(buffer, isGif) {
 
   const framesLength = Array.isArray(frames) ? frames.length : 1;
 
-  const encoder = new GIFEncoder(spriteWidth, spriteHeight);
+  const encoder = new GIFEncoder(spriteWidth, spriteHeight, "neuquant", true);
   encoder.setRepeat(0);
   encoder.setQuality(DEFAULT_QUALITY);
   encoder.setTransparent(0x00000000);
@@ -587,5 +589,5 @@ module.exports = {
   shuffle,
   scaryAttack,
   heartbeat,
-  getThisManA
+  getThisManA,
 };
